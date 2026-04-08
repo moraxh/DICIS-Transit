@@ -111,23 +111,35 @@ export function AppSidebar() {
           <div className="absolute inset-0 bg-linear-to-b from-white/5 to-transparent pointer-events-none" />
 
           <SidebarMenu className="flex flex-row gap-1 relative z-10">
-            <Image
-              src={Logo}
-              alt="logo"
-              height={30}
-              width={30}
-              className="min-w-fit shadow-sm"
-            />
-            <SidebarMenuItem className="flex flex-col gap-0">
-              <h1 className="text-lg flex gap-2 items-center font-medium bg-clip-text text-transparent bg-linear-to-r from-white to-white/70">
-                DICIS Transit
-              </h1>
-              <span className="text-sm text-muted-foreground/70 tracking-wide">
-                Salamanca, Gto.
-              </span>
-            </SidebarMenuItem>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="flex items-center gap-1"
+            >
+              <Image
+                src={Logo}
+                alt="logo"
+                height={30}
+                width={30}
+                className="min-w-fit shadow-sm"
+              />
+              <SidebarMenuItem className="flex flex-col gap-0">
+                <h1 className="text-lg flex gap-2 items-center font-medium bg-clip-text text-transparent bg-linear-to-r from-white to-white/70">
+                  DICIS Transit
+                </h1>
+                <span className="text-sm text-muted-foreground/70 tracking-wide">
+                  Salamanca, Gto.
+                </span>
+              </SidebarMenuItem>
+            </motion.div>
 
-            <div className="text-[0.7rem] ms-auto text-zinc-600 flex items-center justify-between pt-2 mb-auto">
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
+              className="text-[0.7rem] ms-auto text-zinc-600 flex items-center justify-between pt-2 mb-auto"
+            >
               <motion.a
                 href="https://github.com/moraxh"
                 target="_blank"
@@ -152,30 +164,40 @@ export function AppSidebar() {
                   <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
                 </motion.svg>
               </motion.a>
-            </div>
+            </motion.div>
           </SidebarMenu>
 
-          <TabsList className="flex gap-5 relative bg-transparent">
-            {tabs.map((tab) => (
-              <TabsTrigger
-                key={tab.value}
-                value={tab.value}
-                className="relative px-2 bg-0 border-0 bg-transparent! group transition-colors hover:text-white"
-              >
-                {activeTab === tab.value && (
-                  <motion.div
-                    layoutId="tab-indicator"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-white rounded-t-sm"
-                    transition={{ type: "spring", stiffness: 500, damping: 35 }}
-                  ></motion.div>
-                )}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <TabsList className="flex gap-5 relative bg-transparent">
+              {tabs.map((tab) => (
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  className="relative px-2 bg-0 border-0 bg-transparent! group transition-colors hover:text-white"
+                >
+                  {activeTab === tab.value && (
+                    <motion.div
+                      layoutId="tab-indicator"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-white rounded-t-sm"
+                      transition={{
+                        type: "spring",
+                        stiffness: 500,
+                        damping: 35,
+                      }}
+                    ></motion.div>
+                  )}
 
-                <span className="relative z-10 transition-transform group-hover:scale-105 inline-block">
-                  {tab.label}
-                </span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
+                  <span className="relative z-10 transition-transform group-hover:scale-105 inline-block">
+                    {tab.label}
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </motion.div>
         </SidebarHeader>
 
         <SidebarContent className="w-full flex-1 overflow-hidden flex flex-col relative">
@@ -183,9 +205,14 @@ export function AppSidebar() {
           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl -z-10 pointer-events-none" />
 
           {/* Fixed height container for Map, only visible on Mobile */}
-          <div className="md:hidden h-[35vh] shrink-0 mb-4 rounded-xl shadow-md border border-white/10 relative overflow-hidden bg-black/10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="md:hidden h-[35vh] shrink-0 mb-4 rounded-xl shadow-md border border-white/10 relative overflow-hidden bg-black/10"
+          >
             <PublicMap className="w-full h-full object-cover" />
-          </div>
+          </motion.div>
 
           <div className="relative w-full flex-1">
             <AnimatePresence
@@ -219,7 +246,7 @@ export function AppSidebar() {
             transition={{ delay: 0.3, duration: 0.5 }}
           >
             <Info className="mt-0.5 shrink-0 text-zinc-500" size={15} />
-            <p className="text-[0.6rem] leading-relaxed">
+            <p className="text-[0.7rem] leading-relaxed">
               <strong className="text-zinc-400">Aviso legal:</strong> Esta no es
               una herramienta oficial de la Universidad de Guanajuato, sino una
               propuesta estudiantil. Las rutas, tiempos y ubicaciones son
