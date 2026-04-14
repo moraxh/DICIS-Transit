@@ -17,7 +17,9 @@ export default function RouteFocus() {
 
       if (activeRoute && activeRoute.points.length > 0) {
         if (activeStopId) {
-          const activeStop = activeRoute.points.find((pt) => pt.stop_id === activeStopId);
+          const activeStop = activeRoute.points.find(
+            (pt) => pt.stop_id === activeStopId,
+          );
           if (activeStop) {
             // If zooming to a specific stop
             const mapSize = map.getSize();
