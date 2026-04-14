@@ -73,6 +73,7 @@ function SidebarProvider({
       }
 
       // This sets the cookie to keep the sidebar state.
+      // biome-ignore lint/suspicious/noDocumentCookie: State persistence
       document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
     },
     [setOpenProp, open],
@@ -108,6 +109,8 @@ function SidebarProvider({
       state,
       open,
       setOpen,
+      openMobile: false, // Polyfilled because we ignored it
+      setOpenMobile: () => {}, // Polyfilled because we ignored it
       isMobile,
       toggleSidebar,
     }),
@@ -150,7 +153,7 @@ function Sidebar({
   variant?: "sidebar" | "floating" | "inset";
   collapsible?: "offcanvas" | "icon" | "none";
 }) {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const { state } = useSidebar();
 
   if (collapsible === "none") {
     return (

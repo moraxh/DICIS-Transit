@@ -1,42 +1,47 @@
 "use client";
 
 import "leaflet/dist/leaflet.css";
+import { useMapData } from "@providers/map-provider";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import MapResizeHandler from "./map-resize-handler";
+import RouteFocus from "./route-focus";
+import RouteLayer from "./route-layer";
 
 function CinematicFlight() {
   const map = useMap();
+  const { routes } = useMapData();
 
   useEffect(() => {
-    const targetCenter: [number, number] = [
-      20.549879054215197, -101.2008414859346,
-    ];
-    const targetZoom = 15;
+    // If no data is loaded yet
+    if (routes.length === 0) return;
 
-    // Delay the flight slightly to allow the UI entering animation to finish.
-    // Framer motion animation takes 1s (0.2 delay + 0.8 duration), so we wait 1.2s.
+    // Take the first route as an example (typical enmss to dicis)
+    const dicisPoint = routes[0]?.points?.find((p) => p.stop_name === "DICIS");
+    const targetCenter: [number, number] = dicisPoint
+      ? [dicisPoint.latitude, dicisPoint.longitude]
+      : [20.549879054215197, -101.2008414859346];
+
+    const targetZoom = 14;
+
     const timeout = setTimeout(() => {
-      map.invalidateSize(); // Force recalculation to prevent (NaN, NaN) projection errors
+      map.invalidateSize();
 
-      // Ensure the container actually has a size before attempting to fly
       const size = map.getSize();
       if (size.x > 0 && size.y > 0) {
-        // Mark as flown in this session right before starting the flight
         sessionStorage.setItem("dicis_map_flown", "true");
 
-        // flyTo uses an exponential zoom-pan curve internally (van Wijk & Nuij for cinematic movement)
         map.flyTo(targetCenter, targetZoom, {
           animate: true,
-          duration: 3,
-          easeLinearity: 0.25, // Exponential / Bezier curve degree
+          duration: 1,
+          easeLinearity: 0.25,
         });
       }
     }, 1200);
 
     return () => clearTimeout(timeout);
-  }, [map]);
+  }, [map, routes]);
 
   return null;
 }
@@ -46,15 +51,15 @@ export default function PublicMap({ className }: { className?: string }) {
   const [hasFlown, setHasFlown] = useState(false);
   const [mapKey, setMapKey] = useState(0);
 
+  const { routes, activeRouteId, isLoading } = useMapData();
+
   useEffect(() => {
     setMounted(true);
     setMapKey((prev) => prev + 1);
 
-    // Only fly once per session to improve UX
     if (sessionStorage.getItem("dicis_map_flown")) {
       setHasFlown(true);
     }
-
     return () => setMounted(false);
   }, []);
 
@@ -79,8 +84,8 @@ export default function PublicMap({ className }: { className?: string }) {
           hasFlown
             ? [20.549879054215197, -101.2008414859346]
             : [20.8, -101.2008]
-        } // Start further north if first time
-        zoom={hasFlown ? 15 : 9} // Initial wider zoom level or final zoom if already flown
+        }
+        zoom={hasFlown ? 13 : 9}
         className="w-full h-full"
         zoomControl={false}
         attributionControl={false}
@@ -88,6 +93,15 @@ export default function PublicMap({ className }: { className?: string }) {
         {!hasFlown && <CinematicFlight />}
         <MapResizeHandler />
         <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+
+        {!isLoading &&
+          routes.map(
+            (route) =>
+              route.id === activeRouteId && (
+                <RouteLayer key={route.id} route={route} isHighlight={true} />
+              ),
+          )}
+        {hasFlown && <RouteFocus />}
       </MapContainer>
     </motion.div>
   );

@@ -91,9 +91,79 @@
   }
   html {
     @apply font-sans;
-  } 
+  }
+}
+
+/* Minimalist elegant scrollbar matching dark/light themes */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.5 0 0 / 50%);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.3 0 0 / 80%);
+}
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.7 0 0 / 30%);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.9 0 0 / 50%);
+  }
 }
 
 .leaflet-container {
   background-color: #050505 !important;
+}
+/* Leaflet Custom Overrides for Shadcn UI look */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.leaflet-popup-content {
+  margin: 0 !important;
+  width: max-content;
+}
+.leaflet-tooltip.shadcn-tooltip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.leaflet-popup-tip-container {
+  display: none !important;
+}
+
+/* Animation for the map routes */
+
+@keyframes drawLine {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Stop markers */
+.stop-dot {
+  background-color: white;
+  border: 2px solid black;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
