@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Suspense } from "react";
 import "./globals.css";
-import { AppSidebar } from "@components/shared/sidebar/app-sidebar";
-import { SidebarProvider, SidebarTrigger } from "@components/ui/sidebar";
 import { TooltipProvider } from "@components/ui/tooltip";
 import { cn } from "@lib/utils";
-import { MapProvider } from "@providers/map-provider";
+import { AuthProvider } from "@providers/auth-provider";
+import FaviconDark from "./favicon_dark.ico";
+import FaviconLight from "./favicon_light.ico";
 
 const fontSans = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const fontMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
@@ -14,6 +13,22 @@ const fontMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 export const metadata: Metadata = {
   title: "DICIS Transit",
   description: "Una plataforma de gestión de transporte universitario",
+  icons: {
+    icon: [
+      {
+        rel: "icon",
+        media: "(prefers-color-scheme: light)",
+        type: "image/ico",
+        url: FaviconLight.src,
+      },
+      {
+        rel: "icon",
+        media: "(prefers-color-scheme: dark)",
+        type: "image/ico",
+        url: FaviconDark.src,
+      },
+    ],
+  },
 };
 
 export default function RootLayout({
@@ -23,7 +38,7 @@ export default function RootLayout({
 }) {
   return (
     <html
-      lang="en"
+      lang="es"
       className={cn(
         "h-full",
         "antialiased",
@@ -33,22 +48,9 @@ export default function RootLayout({
       )}
     >
       <body className="min-h-full flex flex-col">
-        <MapProvider>
-          <TooltipProvider>
-            <SidebarProvider>
-              <Suspense fallback={null}>
-                <AppSidebar />
-              </Suspense>
-              <main className="max-w-full w-screen h-screen">
-                <SidebarTrigger
-                  size="icon-sm"
-                  className="fixed border-none rounded-lg! m-2 z-10 hidden md:flex"
-                />
-                {children}
-              </main>
-            </SidebarProvider>
-          </TooltipProvider>
-        </MapProvider>
+        <AuthProvider>
+          <TooltipProvider>{children}</TooltipProvider>
+        </AuthProvider>
       </body>
     </html>
   );

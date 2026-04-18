@@ -115,14 +115,14 @@ export function AppSidebar() {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, ease: "easeOut" }}
-              className="flex items-center gap-1"
+              className="flex items-center gap-2"
             >
               <Image
                 src={Logo}
                 alt="logo"
-                height={30}
-                width={30}
-                className="min-w-fit shadow-sm"
+                height={25}
+                width={25}
+                className="shadow-sm"
               />
               <SidebarMenuItem className="flex flex-col gap-0">
                 <h1 className="text-lg flex gap-2 items-center font-medium bg-clip-text text-transparent bg-linear-to-r from-white to-white/70">
