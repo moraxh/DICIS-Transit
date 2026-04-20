@@ -5,19 +5,19 @@ import { useMapData } from "@providers/map-provider";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import BusMarkerLayer from "./bus-marker-layer";
 import MapResizeHandler from "./map-resize-handler";
 import RouteFocus from "./route-focus";
 import RouteLayer from "./route-layer";
+import UserLocationMarker from "./user-location-marker";
 
 function CinematicFlight() {
   const map = useMap();
   const { routes } = useMapData();
 
   useEffect(() => {
-    // If no data is loaded yet
     if (routes.length === 0) return;
 
-    // Take the first route as an example (typical enmss to dicis)
     const dicisPoint = routes[0]?.points?.find((p) => p.stop_name === "DICIS");
     const targetCenter: [number, number] = dicisPoint
       ? [dicisPoint.latitude, dicisPoint.longitude]
@@ -73,8 +73,8 @@ export default function PublicMap({ className }: { className?: string }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.98, filter: "blur(4px)" }}
-      animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+      initial={{ opacity: 0, filter: "blur(4px)" }}
+      animate={{ opacity: 1, filter: "blur(0px)" }}
       transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
       className={`bg-black flex-1 relative z-0 w-full h-full overflow-hidden ${className}`}
     >
@@ -101,6 +101,14 @@ export default function PublicMap({ className }: { className?: string }) {
                 <RouteLayer key={route.id} route={route} isHighlight={true} />
               ),
           )}
+
+        {/* All active buses shown regardless of selected route */}
+        {!isLoading &&
+          routes.map((route) => (
+            <BusMarkerLayer key={`bus-${route.id}`} route={route} />
+          ))}
+
+        <UserLocationMarker />
         {hasFlown && <RouteFocus />}
       </MapContainer>
     </motion.div>

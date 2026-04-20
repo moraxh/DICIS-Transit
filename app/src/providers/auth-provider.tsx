@@ -18,6 +18,7 @@ type AuthProviderType = {
   isLoading: boolean;
   userType: "student" | "admin" | null;
   userData: User | null;
+  credibilityScore: number | null;
 };
 
 const AuthContext = createContext<AuthProviderType | undefined>(undefined);
@@ -28,6 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [userData, setUserData] = useState<User | null>(null);
   const [userType, setUserType] = useState<"student" | "admin" | null>(null);
+  const [credibilityScore, setCredibilityScore] = useState<number | null>(null);
 
   const studentLogin = useCallback(async (visitorId: string) => {
     let success = false;
@@ -78,6 +80,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         setUserData(user);
+
+        const { data: publicUser } = await supabase
+          .from("users")
+          .select("role, credibility_score")
+          .eq("id", user.id)
+          .single();
+
+        if (publicUser) {
+          setUserType(publicUser.role as "student" | "admin");
+          setCredibilityScore(publicUser.credibility_score ?? null);
+        }
       } catch (error) {
         console.error("Error fetching current user:", error);
         toast.error("Error al obtener información del usuario");
@@ -95,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [thumbmark, getCurrentUser, isThumbmarkLoading]);
 
   return (
-    <AuthContext.Provider value={{ visitorId, userType, isLoading, userData }}>
+    <AuthContext.Provider value={{ visitorId, userType, isLoading, userData, credibilityScore }}>
       {children}
     </AuthContext.Provider>
   );

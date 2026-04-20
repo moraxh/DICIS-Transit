@@ -1,17 +1,23 @@
+import { NEXT_PUBLIC_MAPBOX_TOKEN } from "@lib/env";
+import type { ReportCount, RouteData } from "@providers/map-provider";
+import { useMapData } from "@providers/map-provider";
 import L from "leaflet";
 import { useEffect, useRef, useState } from "react";
 import { Marker, Polyline, Popup, Tooltip } from "react-leaflet";
-import { NEXT_PUBLIC_MAPBOX_TOKEN } from "../../../lib/env";
-import type { RouteData } from "../../../providers/map-provider";
 
-const createStopIcon = (delay: number) => {
+const createStopIcon = (delay: number, hasReports = false) => {
   return L.divIcon({
     className: "bg-transparent border-none",
-    html: `<div class="stop-dot" style="width: 12px; height: 12px; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; animation-delay: ${delay}s; opacity: 0; transform: scale(0.5);"></div>`,
-    iconSize: [12, 12],
-    iconAnchor: [6, 6],
+    html: hasReports
+      ? `<div style="position:relative;width:14px;height:14px;animation:popIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275) forwards;animation-delay:${delay}s;opacity:0;transform:scale(0.5);">
+           <div class="stop-dot" style="width:14px;height:14px;background:#ef4444;box-shadow:0 0 6px rgba(239,68,68,0.7);"></div>
+           <div style="position:absolute;inset:0;border-radius:50%;background:rgba(239,68,68,0.4);animation:busRipple 2s ease-out ${delay + 0.5}s infinite;"></div>
+         </div>`
+      : `<div class="stop-dot" style="width:12px;height:12px;animation:popIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275) forwards;animation-delay:${delay}s;opacity:0;transform:scale(0.5);"></div>`,
+    iconSize: hasReports ? [14, 14] : [12, 12],
+    iconAnchor: hasReports ? [7, 7] : [6, 6],
     popupAnchor: [0, -6],
-    tooltipAnchor: [6, -3],
+    tooltipAnchor: hasReports ? [7, -4] : [6, -3],
   });
 };
 
@@ -48,6 +54,7 @@ export default function RouteLayer({
   route: RouteData;
   isHighlight: boolean;
 }) {
+  const { reportCounts } = useMapData();
   const [path, setPath] = useState<[number, number][]>(
     route.points.map((pt) => [pt.latitude, pt.longitude]),
   );
@@ -161,13 +168,22 @@ export default function RouteLayer({
         const stopIdx = stopsOnly.findIndex((p) => p.stop_id === pt.stop_id);
         const delay = isHighlight ? Math.max(0, stopIdx * 0.1) : 0;
 
+        const stopReports = reportCounts.filter(
+          (r) => r.stop_id === pt.stop_id && r.route_id === route.id,
+        );
+        const hasReports = stopReports.length > 0;
+        const totalReports = stopReports.reduce(
+          (s, r) => s + r.report_count,
+          0,
+        );
+
         let icon: import("leaflet").DivIcon;
         if (pt.point_role === "start") {
           icon = createStartIcon(delay);
         } else if (pt.point_role === "end") {
           icon = createEndIcon(delay);
         } else {
-          icon = createStopIcon(delay); // Regular stops are just white dots
+          icon = createStopIcon(delay, hasReports);
         }
 
         // Calculate next predicted arrival based on schedule
@@ -229,16 +245,42 @@ export default function RouteLayer({
                 direction="top"
                 offset={[0, -12]}
                 opacity={1}
-                className="shadcn-tooltip z-50 transition-transform hover:scale-105"
+                className="shadcn-tooltip z-50"
               >
-                <div className="relative bg-zinc-950 dark:bg-black text-white border border-zinc-800 px-4 py-2.5 text-xs font-semibold shadow-2xl flex flex-col items-center gap-1">
+                <div className="relative bg-zinc-950 text-white border border-zinc-800 px-4 py-2.5 text-xs shadow-2xl flex flex-col items-center gap-1 min-w-[140px]">
+                  {pt.point_role === "start" && (
+                    <span className="text-[9px] font-semibold uppercase tracking-widest text-zinc-500 mb-0.5">
+                      Punto de salida
+                    </span>
+                  )}
+                  {pt.point_role === "end" && (
+                    <span className="text-[9px] font-semibold uppercase tracking-widest text-zinc-500 mb-0.5">
+                      Destino final
+                    </span>
+                  )}
                   <span className="font-bold text-[13px] leading-tight text-center">
                     {pt.stop_name}
                   </span>
+                  {pt.cumulative_minutes > 0 && (
+                    <span className="text-[10px] text-zinc-600 font-medium">
+                      +{pt.cumulative_minutes} min desde inicio
+                    </span>
+                  )}
+                  <div className="w-full border-t border-zinc-800 my-0.5" />
                   <span className="text-[10px] text-zinc-400 font-medium whitespace-nowrap">
                     {nextArrivalText}
                   </span>
-                  <div className="absolute -bottom-[5px] left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-zinc-950 dark:bg-black border-b border-r border-zinc-800 rotate-45 z-[-1]" />
+                  {hasReports && (
+                    <>
+                      <div className="w-full border-t border-zinc-800 my-0.5" />
+                      <span className="text-[10px] text-red-400 font-semibold whitespace-nowrap flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
+                        {totalReports} reporte{totalReports !== 1 ? "s" : ""}{" "}
+                        hoy
+                      </span>
+                    </>
+                  )}
+                  <div className="absolute -bottom-[5px] left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-zinc-950 border-b border-r border-zinc-800 rotate-45 z-[-1]" />
                 </div>
               </Tooltip>
             )}

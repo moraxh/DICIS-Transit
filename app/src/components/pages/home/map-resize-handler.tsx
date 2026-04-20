@@ -8,6 +8,9 @@ export default function MapResizeHandler() {
 
   // Re render the map on window resize to fix leaflet's weird behavior of not resizing the map when the container size changes
   useEffect(() => {
+    // Invalidate after mount so Leaflet recalculates after any CSS transitions settle
+    const timer = setTimeout(() => map.invalidateSize(), 1100);
+
     const observer = new ResizeObserver(() => {
       map.invalidateSize();
     });
@@ -15,7 +18,10 @@ export default function MapResizeHandler() {
     const container = map.getContainer();
     observer.observe(container);
 
-    return () => observer.disconnect();
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
   }, [map]);
 
   return null;
