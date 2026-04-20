@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "@components/ui/sonner";
 import { TooltipProvider } from "@components/ui/tooltip";
 import { cn } from "@lib/utils";
 import { AuthProvider } from "@providers/auth-provider";
+import { ThumbmarkProvider } from "@providers/thumbmark-provider";
 import FaviconDark from "./favicon_dark.ico";
 import FaviconLight from "./favicon_light.ico";
 
@@ -48,9 +50,12 @@ export default function RootLayout({
       )}
     >
       <body className="min-h-full flex flex-col">
-        <AuthProvider>
-          <TooltipProvider>{children}</TooltipProvider>
-        </AuthProvider>
+        <ThumbmarkProvider>
+          <AuthProvider>
+            <TooltipProvider>{children}</TooltipProvider>
+          </AuthProvider>
+          <Toaster />
+        </ThumbmarkProvider>
       </body>
     </html>
   );

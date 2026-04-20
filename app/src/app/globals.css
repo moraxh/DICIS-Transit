@@ -47,6 +47,7 @@
 }
 
 :root {
+  --radius: 0.5rem;
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -103,21 +104,11 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.5 0 0 / 50%);
-  border-radius: 10px;
+  background: oklch(0.7 0 0 / 30%);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.3 0 0 / 80%);
+  background: oklch(0.9 0 0 / 50%);
 }
-@media (prefers-color-scheme: dark) {
-  ::-webkit-scrollbar-thumb {
-    background: oklch(0.7 0 0 / 30%);
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.9 0 0 / 50%);
-  }
-}
-
 .leaflet-container {
   background-color: #050505 !important;
 }
@@ -142,7 +133,6 @@
 }
 
 /* Animation for the map routes */
-
 @keyframes drawLine {
   to {
     stroke-dashoffset: 0;

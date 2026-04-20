@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 
-export interface RoutePoint {
+interface RoutePoint {
   route_id: string;
   route_name: string;
   route_is_active: boolean;
@@ -23,14 +23,14 @@ export interface RoutePoint {
   longitude: number;
 }
 
-export interface RouteSchedule {
+interface RouteSchedule {
   id: string;
   route_id: string;
   departure_time: string;
   days_active: number[];
 }
 
-export interface RouteData {
+interface RouteData {
   id: string;
   name: string;
   isActive: boolean;
@@ -143,3 +143,5 @@ export function useMapData() {
   }
   return context;
 }
+
+export type { RouteData, RoutePoint, RouteSchedule };
