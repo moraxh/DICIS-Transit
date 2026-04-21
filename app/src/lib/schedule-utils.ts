@@ -1,5 +1,22 @@
 import type { RouteData, RouteSchedule } from "@providers/map-provider";
 
+export function haversineMeters(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const R = 6371000;
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(Δφ / 2) ** 2 +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export function formatTime(time24: string): string {
   const [hRaw, m] = time24.split(":");
   const h = Number(hRaw);
@@ -91,7 +108,8 @@ export function getActiveBuses(route: RouteData): ActiveBus[] {
   if (todaysSchedules.length === 0) return [];
 
   const now = new Date();
-  const currentMins = now.getHours() * 60 + now.getMinutes();
+  const currentMins =
+    now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
 
   const namedPoints = route.points.filter((p) => p.point_role !== "waypoint");
   if (namedPoints.length < 2) return [];
@@ -179,4 +197,77 @@ export function getUpcomingDepartures(
   }
 
   return results.sort((a, b) => a.minutesUntil - b.minutesUntil).slice(0, limit);
+}
+
+export interface NearestStopArrival {
+  routeId: string;
+  routeName: string;
+  stopId: string;
+  stopName: string;
+  stopLat: number;
+  stopLng: number;
+  distanceMeters: number;
+  minutesUntilArrival: number | null;
+  arrivalTime: string | null;
+}
+
+export function getNearestStopWithNextArrival(
+  routes: RouteData[],
+  userLocation: [number, number] | null,
+  suggestedDirection: "to_dicis" | "from_dicis" | null,
+): NearestStopArrival | null {
+  if (!userLocation) return null;
+
+  const [userLat, userLng] = userLocation;
+  let best: {
+    route: RouteData;
+    point: RouteData["points"][number];
+    distance: number;
+  } | null = null;
+
+  for (const route of routes) {
+    if (suggestedDirection && route.direction !== suggestedDirection) continue;
+    for (const p of route.points) {
+      if (p.point_role === "waypoint") continue;
+      const d = haversineMeters(userLat, userLng, p.latitude, p.longitude);
+      if (!best || d < best.distance) {
+        best = { route, point: p, distance: d };
+      }
+    }
+  }
+
+  if (!best) return null;
+
+  const todays = getTodaysSchedules(best.route);
+  const now = new Date();
+  const currentMins = now.getHours() * 60 + now.getMinutes();
+  const sorted = [...todays].sort((a, b) =>
+    a.departure_time.localeCompare(b.departure_time),
+  );
+
+  let minutesUntilArrival: number | null = null;
+  let arrivalTime: string | null = null;
+  for (const s of sorted) {
+    const [h, m] = s.departure_time.split(":").map(Number);
+    const arrivalMins = h * 60 + m + best.point.cumulative_minutes;
+    if (arrivalMins >= currentMins) {
+      minutesUntilArrival = arrivalMins - currentMins;
+      const hh = Math.floor(arrivalMins / 60) % 24;
+      const mm = (arrivalMins % 60).toString().padStart(2, "0");
+      arrivalTime = `${hh.toString().padStart(2, "0")}:${mm}`;
+      break;
+    }
+  }
+
+  return {
+    routeId: best.route.id,
+    routeName: best.route.name,
+    stopId: best.point.stop_id,
+    stopName: best.point.stop_name,
+    stopLat: best.point.latitude,
+    stopLng: best.point.longitude,
+    distanceMeters: best.distance,
+    minutesUntilArrival,
+    arrivalTime,
+  };
 }

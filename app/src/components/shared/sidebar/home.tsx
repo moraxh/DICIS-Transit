@@ -1,13 +1,16 @@
 "use client";
 
-import { supabase } from "@lib/supabase/client";
 import {
   formatTime,
   getActiveBuses,
+  getNearestStopWithNextArrival,
   getUpcomingDepartures,
+  haversineMeters,
 } from "@lib/schedule-utils";
+import { supabase } from "@lib/supabase/client";
 import { useMapData } from "@providers/map-provider";
 import {
+  AlertTriangle,
   ArrowRight,
   Bell,
   Bus,
@@ -16,29 +19,13 @@ import {
   Loader2,
   MapPin,
   Navigation,
+  Timer,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 
 const DICIS_LAT = 20.549879054215197;
 const DICIS_LNG = -101.2008414859346;
-
-function haversineMeters(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const R = 6371000;
-  const φ1 = (lat1 * Math.PI) / 180;
-  const φ2 = (lat2 * Math.PI) / 180;
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-  const Δλ = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(Δφ / 2) ** 2 +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 const reportTypeLabel: Record<string, string> = {
   did_not_pass: "No pasó el camión",
@@ -48,47 +35,87 @@ const reportTypeLabel: Record<string, string> = {
 };
 
 export default function HomeTab() {
-  const { routes, isLoading, userLocation, reportCounts } = useMapData();
+  const {
+    routes,
+    isLoading,
+    userLocation,
+    reportCounts,
+    activeRouteId,
+    setActiveRouteId,
+    setActiveStopId,
+  } = useMapData();
   const [urgentCount, setUrgentCount] = useState<number | null>(null);
   const [firstUrgent, setFirstUrgent] = useState<string | null>(null);
   const [alertsLoading, setAlertsLoading] = useState(true);
+  const [modCount, setModCount] = useState(0);
+  const [firstMod, setFirstMod] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     async function loadAlerts() {
-      const { data } = await supabase
-        .from("notices")
-        .select("title, priority")
-        .or("expires_at.is.null,expires_at.gt.now()")
-        .in("priority", ["urgent", "high"]);
+      const [noticesRes, modsRes] = await Promise.all([
+        supabase
+          .from("notices")
+          .select("title, priority")
+          .or("expires_at.is.null,expires_at.gt.now()")
+          .in("priority", ["urgent", "high"]),
+        supabase
+          .from("route_modifications")
+          .select("description")
+          .eq("status", "active")
+          .or("valid_to.is.null,valid_to.gt.now()"),
+      ]);
 
-      if (data) {
-        setUrgentCount(data.length);
-        setFirstUrgent(data[0]?.title ?? null);
+      if (noticesRes.data) {
+        setUrgentCount(noticesRes.data.length);
+        setFirstUrgent(noticesRes.data[0]?.title ?? null);
+      }
+      if (modsRes.data) {
+        setModCount(modsRes.data.length);
+        setFirstMod(modsRes.data[0]?.description ?? null);
       }
       setAlertsLoading(false);
     }
     loadAlerts();
   }, []);
 
-  // Determine direction from user proximity to DICIS
+  useEffect(() => {
+    const interval = setInterval(() => setTick((n) => n + 1), 10_000);
+    return () => clearInterval(interval);
+  }, []);
+
   const nearDicis = userLocation
-    ? haversineMeters(userLocation[0], userLocation[1], DICIS_LAT, DICIS_LNG) < 500
+    ? haversineMeters(userLocation[0], userLocation[1], DICIS_LAT, DICIS_LNG) <
+      500
     : null;
 
   const suggestedDirection: "to_dicis" | "from_dicis" | null =
     nearDicis === null ? null : nearDicis ? "from_dicis" : "to_dicis";
 
-  // Filter upcoming departures by suggested direction
-  const allDepartures = isLoading ? [] : getUpcomingDepartures(routes, 10);
-  const upcomingDepartures = allDepartures.filter((dep) => {
-    if (!suggestedDirection) return true;
-    const route = routes.find((r) => r.id === dep.routeId);
-    return route?.direction === suggestedDirection;
-  }).slice(0, 5);
+  const isHydrating = !mounted;
+  const showLoading = isLoading || isHydrating;
 
-  const activeBusCount = isLoading
+  const allDepartures = showLoading ? [] : getUpcomingDepartures(routes, 10);
+  const upcomingDepartures = allDepartures
+    .filter((dep) => {
+      if (!suggestedDirection) return true;
+      const route = routes.find((r) => r.id === dep.routeId);
+      return route?.direction === suggestedDirection;
+    })
+    .slice(0, 5);
+
+  const activeBusCount = showLoading
     ? 0
     : routes.reduce((acc, r) => acc + getActiveBuses(r).length, 0);
+
+  const nearestStop = showLoading
+    ? null
+    : getNearestStopWithNextArrival(routes, userLocation, suggestedDirection);
 
   const directionLabel =
     suggestedDirection === "from_dicis"
@@ -104,8 +131,44 @@ export default function HomeTab() {
         ? "Rutas desde Salamanca hacia DICIS"
         : null;
 
+  const directionFrom =
+    suggestedDirection === "from_dicis" ? "DICIS" : "Salamanca";
+
+  const directionTo = suggestedDirection === "from_dicis" ? "ENMSS" : "DICIS";
+
+  function formatDistance(m: number): string {
+    if (m < 1000) return `${Math.round(m)} m`;
+    return `${(m / 1000).toFixed(1)} km`;
+  }
+
+  function focusStopOnMap(routeId: string, stopId: string) {
+    if (routeId !== activeRouteId) setActiveRouteId(routeId);
+    setActiveStopId(stopId);
+  }
+
   return (
     <div className="p-5 flex flex-col gap-5">
+      {/* Route modifications banner */}
+      {!alertsLoading && modCount > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-red-500/30 bg-red-500/8">
+            <AlertTriangle size={16} className="text-red-400 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-white">
+                {modCount} ruta{modCount !== 1 ? "s" : ""} con modificación
+              </p>
+              {firstMod && (
+                <p className="text-[11px] text-zinc-400 truncate">{firstMod}</p>
+              )}
+            </div>
+            <ChevronRight size={14} className="text-zinc-600 shrink-0" />
+          </div>
+        </motion.section>
+      )}
+
       {/* Direction indicator */}
       {suggestedDirection && (
         <motion.section
@@ -122,9 +185,9 @@ export default function HomeTab() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white flex items-center gap-1.5">
-                {directionLabel}
+                {directionFrom}
                 <ArrowRight size={12} className="text-zinc-500" />
-                {suggestedDirection === "from_dicis" ? "ENMSS" : "DICIS"}
+                {directionTo}
               </p>
               <p className="text-[11px] text-zinc-500">{directionSub}</p>
             </div>
@@ -132,16 +195,87 @@ export default function HomeTab() {
         </motion.section>
       )}
 
+      {/* Nearest stop */}
+      <section>
+        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">
+          Tu parada más cercana
+        </h3>
+        {!userLocation ? (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4 text-center">
+            <MapPin size={16} className="text-zinc-600 mx-auto mb-1.5" />
+            <p className="text-xs text-zinc-500">
+              Activa tu ubicación para ver tu parada más cercana
+            </p>
+          </div>
+        ) : showLoading ? (
+          <div className="h-20 rounded-xl bg-white/5 animate-pulse" />
+        ) : !nearestStop ? (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4 text-center">
+            <p className="text-xs text-zinc-500">No hay paradas cercanas</p>
+          </div>
+        ) : (
+          <motion.button
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={() =>
+              focusStopOnMap(nearestStop.routeId, nearestStop.stopId)
+            }
+            className="w-full text-left flex flex-col gap-2 px-4 py-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
+                <MapPin size={16} className="text-emerald-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white truncate">
+                  {nearestStop.stopName}
+                </p>
+                <p className="text-[11px] text-zinc-500 truncate">
+                  {formatDistance(nearestStop.distanceMeters)} ·{" "}
+                  {nearestStop.routeName}
+                </p>
+              </div>
+              <ChevronRight size={14} className="text-zinc-600 shrink-0" />
+            </div>
+            <div className="flex items-center gap-2 pl-12">
+              <Timer size={12} className="text-emerald-400 shrink-0" />
+              {nearestStop.minutesUntilArrival === null ? (
+                <span className="text-[11px] text-zinc-500">
+                  Sin más paradas hoy
+                </span>
+              ) : nearestStop.minutesUntilArrival === 0 ? (
+                <span className="text-[11px] font-semibold text-emerald-400">
+                  Llegando ahora
+                </span>
+              ) : nearestStop.minutesUntilArrival <= 5 ? (
+                <span className="text-[11px] font-semibold text-orange-400">
+                  ¡Pronto! en {nearestStop.minutesUntilArrival} min
+                </span>
+              ) : (
+                <span className="text-[11px] text-zinc-300">
+                  Próximo camión en{" "}
+                  <span className="font-semibold text-white">
+                    {nearestStop.minutesUntilArrival} min
+                  </span>
+                </span>
+              )}
+            </div>
+          </motion.button>
+        )}
+      </section>
+
       {/* Próximas salidas */}
       <section>
         <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">
           Próximas salidas
           {directionLabel && (
-            <span className="ml-2 normal-case text-zinc-600">· {directionLabel}</span>
+            <span className="ml-2 normal-case text-zinc-600">
+              · {directionLabel}
+            </span>
           )}
         </h3>
 
-        {isLoading ? (
+        {showLoading ? (
           <div className="flex flex-col gap-2">
             {[1, 2, 3].map((i) => (
               <div
@@ -156,42 +290,62 @@ export default function HomeTab() {
             animate={{ opacity: 1 }}
             className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4 text-center"
           >
-            <p className="text-xs text-zinc-500">Sin salidas en las próximas 2 horas</p>
+            <p className="text-xs text-zinc-500">
+              Sin salidas en las próximas 2 horas
+            </p>
           </motion.div>
         ) : (
           <div className="flex flex-col gap-2">
-            {upcomingDepartures.map((dep, i) => (
-              <motion.div
-                key={`${dep.routeId}-${dep.departureTime}`}
-                initial={{ opacity: 0, x: -15 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.06 }}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl border border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900 transition-colors"
-              >
-                <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
-                  <Bus size={15} className="text-zinc-300" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">
-                    {dep.routeName}
-                  </p>
-                  <p className="text-[11px] text-zinc-500">
-                    Sale a las {formatTime(dep.departureTime)}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  {dep.minutesUntil === 0 ? (
-                    <span className="text-xs font-semibold text-emerald-400">
-                      Ahora
-                    </span>
-                  ) : (
-                    <span className="text-xs font-semibold text-white">
-                      en {dep.minutesUntil} min
-                    </span>
-                  )}
-                </div>
-              </motion.div>
-            ))}
+            {upcomingDepartures.map((dep, i) => {
+              const isSoon = dep.minutesUntil > 0 && dep.minutesUntil <= 5;
+              return (
+                <motion.div
+                  key={`${dep.routeId}-${dep.departureTime}`}
+                  initial={{ opacity: 0, x: -15 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.06 }}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
+                    isSoon
+                      ? "border-orange-500/30 bg-orange-500/8"
+                      : "border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900"
+                  }`}
+                >
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                      isSoon ? "bg-orange-500/15" : "bg-white/5"
+                    }`}
+                  >
+                    <Bus
+                      size={15}
+                      className={isSoon ? "text-orange-400" : "text-zinc-300"}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">
+                      {dep.routeName}
+                    </p>
+                    <p className="text-[11px] text-zinc-500">
+                      Sale a las {formatTime(dep.departureTime)}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    {dep.minutesUntil === 0 ? (
+                      <span className="text-xs font-semibold text-emerald-400">
+                        Ahora
+                      </span>
+                    ) : isSoon ? (
+                      <span className="text-xs font-semibold text-orange-400">
+                        ¡Pronto! {dep.minutesUntil} min
+                      </span>
+                    ) : (
+                      <span className="text-xs font-semibold text-white">
+                        en {dep.minutesUntil} min
+                      </span>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </section>
@@ -223,7 +377,8 @@ export default function HomeTab() {
                     {reportTypeLabel[rc.report_type] ?? rc.report_type}
                   </p>
                   <p className="text-[11px] text-zinc-500 truncate">
-                    {rc.route_name}{rc.stop_name ? ` · ${rc.stop_name}` : ""}
+                    {rc.route_name}
+                    {rc.stop_name ? ` · ${rc.stop_name}` : ""}
                   </p>
                 </div>
                 <span className="text-xs font-bold text-red-400 shrink-0">
@@ -259,12 +414,13 @@ export default function HomeTab() {
             }`}
           />
           <div className="flex-1">
-            {isLoading ? (
+            {showLoading ? (
               <Loader2 size={14} className="animate-spin text-zinc-500" />
             ) : activeBusCount > 0 ? (
               <>
                 <p className="text-sm font-medium text-white">
-                  {activeBusCount} camión{activeBusCount !== 1 ? "es" : ""} en ruta
+                  {activeBusCount} camión{activeBusCount !== 1 ? "es" : ""} en
+                  ruta
                 </p>
                 <p className="text-[11px] text-zinc-500">Servicio activo</p>
               </>
@@ -312,7 +468,8 @@ export default function HomeTab() {
               {urgentCount && urgentCount > 0 ? (
                 <>
                   <p className="text-sm font-medium text-white">
-                    {urgentCount} aviso{urgentCount !== 1 ? "s" : ""} importante{urgentCount !== 1 ? "s" : ""}
+                    {urgentCount} aviso{urgentCount !== 1 ? "s" : ""} importante
+                    {urgentCount !== 1 ? "s" : ""}
                   </p>
                   {firstUrgent && (
                     <p className="text-[11px] text-zinc-400 truncate">

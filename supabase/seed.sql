@@ -40,14 +40,14 @@ DECLARE
 
 BEGIN
     -- 1. CREATE ROUTES
-    INSERT INTO routes (id, name, is_active) VALUES
-    (r_ida_completa, 'L-V: ENMSS a DICIS', true),
-    (r_ida_puentes, 'L-V: Puentes Gemelos a DICIS', true),
-    (r_ida_central, 'L-V: Central de Autobuses a DICIS', true),
-    (r_ida_aurrera, 'L-V: Aurrera Sur a DICIS', true),
-    (r_ida_sabatina, 'Sábados: ENMSS a DICIS', true),
-    (r_vuelta_completa, 'L-V: DICIS a ENMSS', true),
-    (r_vuelta_sabatina, 'Sábados: DICIS a ENMSS', true);
+    INSERT INTO routes (id, name, is_active, direction) VALUES
+    (r_ida_completa, 'L-V: ENMSS a DICIS', true, 'to_dicis'),
+    (r_ida_puentes, 'L-V: Puentes Gemelos a DICIS', true, 'to_dicis'),
+    (r_ida_central, 'L-V: Central de Autobuses a DICIS', true, 'to_dicis'),
+    (r_ida_aurrera, 'L-V: Aurrera Sur a DICIS', true, 'to_dicis'),
+    (r_ida_sabatina, 'Sábados: ENMSS a DICIS', true, 'to_dicis'),
+    (r_vuelta_completa, 'L-V: DICIS a ENMSS', true, 'from_dicis'),
+    (r_vuelta_sabatina, 'Sábados: DICIS a ENMSS', true, 'from_dicis');
 
     -- 2. CREATE STOPS AND WAYPOINTS
     INSERT INTO stops (id, name, latitude, longitude) VALUES

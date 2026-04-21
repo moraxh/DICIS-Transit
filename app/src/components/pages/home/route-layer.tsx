@@ -3,47 +3,47 @@ import type { ReportCount, RouteData } from "@providers/map-provider";
 import { useMapData } from "@providers/map-provider";
 import L from "leaflet";
 import { useEffect, useRef, useState } from "react";
-import { Marker, Polyline, Popup, Tooltip } from "react-leaflet";
+import { Marker, Polyline, Tooltip } from "react-leaflet";
 
 const createStopIcon = (delay: number, hasReports = false) => {
   return L.divIcon({
     className: "bg-transparent border-none",
     html: hasReports
-      ? `<div style="position:relative;width:14px;height:14px;animation:popIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275) forwards;animation-delay:${delay}s;opacity:0;transform:scale(0.5);">
-           <div class="stop-dot" style="width:14px;height:14px;background:#ef4444;box-shadow:0 0 6px rgba(239,68,68,0.7);"></div>
-           <div style="position:absolute;inset:0;border-radius:50%;background:rgba(239,68,68,0.4);animation:busRipple 2s ease-out ${delay + 0.5}s infinite;"></div>
+      ? `<div style="position:relative;width:12px;height:12px;animation:popIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275) forwards;animation-delay:${delay}s;opacity:0;transform:scale(0.5);">
+           <div style="width:12px;height:12px;background:#ef4444;border-radius:50%;box-shadow:0 0 0 2px rgba(0,0,0,0.6),0 0 8px rgba(239,68,68,0.6);"></div>
+           <div style="position:absolute;inset:0;border-radius:50%;background:rgba(239,68,68,0.3);animation:busRipple 2.5s ease-out ${delay + 0.4}s infinite;"></div>
          </div>`
-      : `<div class="stop-dot" style="width:12px;height:12px;animation:popIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275) forwards;animation-delay:${delay}s;opacity:0;transform:scale(0.5);"></div>`,
-    iconSize: hasReports ? [14, 14] : [12, 12],
-    iconAnchor: hasReports ? [7, 7] : [6, 6],
+      : `<div class="stop-dot" style="width:8px;height:8px;animation:popIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275) forwards;animation-delay:${delay}s;opacity:0;transform:scale(0.5);"></div>`,
+    iconSize: hasReports ? [12, 12] : [8, 8],
+    iconAnchor: hasReports ? [6, 6] : [4, 4],
     popupAnchor: [0, -6],
-    tooltipAnchor: hasReports ? [7, -4] : [6, -3],
+    tooltipAnchor: hasReports ? [6, -4] : [4, -2],
   });
 };
 
 const createStartIcon = (delay: number) => {
   return L.divIcon({
     className: "bg-transparent border-none",
-    html: `<div style="animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; animation-delay: ${delay}s; opacity: 0; transform: scale(0.5);">
-      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#ffffff" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drop-shadow-lg"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3" fill="#000000"/></svg>
+    html: `<div style="animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; animation-delay: ${delay}s; opacity: 0; transform: scale(0.5);">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="#ffffff" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 1px 4px rgba(0,0,0,0.8))"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3" fill="#000000"/></svg>
     </div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 28],
-    popupAnchor: [0, -28],
-    tooltipAnchor: [14, -14],
+    iconSize: [22, 22],
+    iconAnchor: [11, 22],
+    popupAnchor: [0, -22],
+    tooltipAnchor: [11, -11],
   });
 };
 
 const createEndIcon = (delay: number) => {
   return L.divIcon({
     className: "bg-transparent border-none",
-    html: `<div style="animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; animation-delay: ${delay}s; opacity: 0; transform: scale(0.5);">
-      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#000000" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drop-shadow-lg"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><path d="m9 10 2 2 4-4"/></svg>
+    html: `<div style="animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; animation-delay: ${delay}s; opacity: 0; transform: scale(0.5);">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="#000000" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 1px 4px rgba(0,0,0,0.8))"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><path d="m9 10 2 2 4-4"/></svg>
     </div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 28],
-    popupAnchor: [0, -28],
-    tooltipAnchor: [14, -14],
+    iconSize: [22, 22],
+    iconAnchor: [11, 22],
+    popupAnchor: [0, -22],
+    tooltipAnchor: [11, -11],
   });
 };
 
@@ -58,19 +58,21 @@ export default function RouteLayer({
   const [path, setPath] = useState<[number, number][]>(
     route.points.map((pt) => [pt.latitude, pt.longitude]),
   );
-  // Start invisible, let the camera fly delay complete before drawing
-  const [isVisible, setIsVisible] = useState(false);
+  // Start invisible on first session load to sync with cinematic fly-in.
+  // On route switches after initial load, skip the delay to avoid flicker.
+  const [isVisible, setIsVisible] = useState(() =>
+    typeof window !== "undefined" &&
+    sessionStorage.getItem("dicis_map_flown") === "true",
+  );
   const polylineRef = useRef<L.Polyline>(null);
 
-  // Handle map flight sync logic
   useEffect(() => {
-    // The camera flight duration in route-focus.tsx is exactly 1.5 seconds.
-    // So we wait 1.6s ensuring it loads and renders after finishing zooming.
+    if (isVisible) return;
     const timer = setTimeout(() => {
       setIsVisible(true);
     }, 850);
     return () => clearTimeout(timer);
-  }, []);
+  }, [isVisible]);
 
   // Fetch actual routing data using Mapbox Directions API for superior Mexican road mapping
   useEffect(() => {
@@ -113,50 +115,73 @@ export default function RouteLayer({
       .catch((err) => console.error("Error fetching Mapbox route:", err));
   }, [route]);
 
-  // Visual styles for the line based on if it's the highlighted route (B&W Mono Theme)
-  const lineWeight = isHighlight ? 4 : 3;
-  const lineOpacity = isHighlight ? 1 : 0.2;
-  const lineColor = isHighlight ? "#ffffff" : "#52525b";
-
   if (!isVisible) return null; // completely hidden while syncing Map Flight Animation
+
+  const drawLineHandler = {
+    add: (e: L.LeafletEvent) => {
+      if (isHighlight && e.target) {
+        const el = (e.target as L.Polyline).getElement();
+        if (el) {
+          const length = el.getTotalLength();
+          el.style.strokeDasharray = `${length}`;
+          el.style.strokeDashoffset = `${length}`;
+          el.getBoundingClientRect();
+          el.style.animation = "drawLine 1s ease-in-out forwards";
+          setTimeout(() => {
+            if (el && el.style) {
+              el.style.strokeDasharray = "";
+              el.style.strokeDashoffset = "";
+            }
+          }, 1050);
+        }
+      }
+    },
+  };
 
   return (
     <>
-      <Polyline
-        key={`polyline-${route.id}-${isHighlight}`}
-        ref={polylineRef}
-        positions={path}
-        weight={lineWeight}
-        opacity={lineOpacity}
-        color={lineColor}
-        lineCap="round"
-        lineJoin="round"
-        noClip={true}
-        className={isHighlight ? "drop-shadow-lg animated-polyline" : ""}
-        eventHandlers={{
-          add: (e) => {
-            if (isHighlight && e.target) {
-              const el = e.target.getElement();
-              if (el) {
-                const length = el.getTotalLength();
-                el.style.strokeDasharray = `${length}`;
-                el.style.strokeDashoffset = `${length}`;
-                // Force a browser reflow
-                el.getBoundingClientRect();
-                el.style.animation = "drawLine 1s ease-in-out forwards";
-
-                // Cleanup after animation completes to allow redrawing on zoom without dash clipping
-                setTimeout(() => {
-                  if (el && el.style) {
-                    el.style.strokeDasharray = "";
-                    el.style.strokeDashoffset = "";
-                  }
-                }, 1050);
-              }
-            }
-          },
-        }}
-      />
+      {isHighlight ? (
+        <>
+          {/* Glow halo layer */}
+          <Polyline
+            key={`polyline-glow-${route.id}`}
+            positions={path}
+            weight={10}
+            opacity={0.15}
+            color="#ffffff"
+            lineCap="round"
+            lineJoin="round"
+            noClip={true}
+            interactive={false}
+          />
+          {/* Main active line */}
+          <Polyline
+            key={`polyline-${route.id}-active`}
+            ref={polylineRef}
+            positions={path}
+            weight={3}
+            opacity={1}
+            color="#ffffff"
+            lineCap="round"
+            lineJoin="round"
+            noClip={true}
+            className="animated-polyline"
+            eventHandlers={drawLineHandler}
+          />
+        </>
+      ) : (
+        <Polyline
+          key={`polyline-${route.id}-inactive`}
+          positions={path}
+          weight={2}
+          opacity={0.08}
+          color="#71717a"
+          lineCap="round"
+          lineJoin="round"
+          noClip={true}
+          interactive={false}
+        />
+      )}
 
       {route.points.map((pt, idx) => {
         if (pt.point_role === "waypoint") return null;

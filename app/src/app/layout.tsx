@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@components/ui/sonner";
 import { TooltipProvider } from "@components/ui/tooltip";
+import { ensureDefaultAdmin } from "@lib/server/ensure-default-admin";
 import { cn } from "@lib/utils";
 import { AuthProvider } from "@providers/auth-provider";
 import { ThumbmarkProvider } from "@providers/thumbmark-provider";
@@ -33,11 +34,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  await ensureDefaultAdmin();
+
   return (
     <html
       lang="es"

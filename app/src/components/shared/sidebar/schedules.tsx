@@ -110,7 +110,7 @@ function ScheduleList({ schedules }: { schedules: ScheduleItem[] }) {
           <AlertCircle className="w-4 h-4 text-orange-500" />
           <span className="text-[11px] font-bold text-orange-600 dark:text-orange-400">
             {formatMinutes(getMinutesUntil(schedules[nextIdx].departure_time))}{" "}
-            - ¡Apúrate!
+            - ¡Coyeye!
           </span>
         </motion.div>
       )}

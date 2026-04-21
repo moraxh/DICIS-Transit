@@ -8,39 +8,6 @@ export default async function proxy(request: NextRequest) {
   const { pathname } = new URL(request.url);
   const supabase = await createClient();
 
-  const isStudentLogin = pathname === "/api/auth/login/student";
-
-  if (isStudentLogin) {
-    const ip =
-      request.headers.get("x-forwarded-for") ||
-      request.headers.get("x-real-ip") ||
-      "unknown";
-
-    if (ip !== "unknown") {
-      // Call Postgres RPC for distributed rate limiting across Vercel serverless edge functions
-      const { data: isAllowed, error: rateLimitError } = await supabase.rpc(
-        "check_and_increment_login_limit",
-        { client_ip: ip },
-      );
-
-      if (rateLimitError) {
-        console.error("Rate limit check failed:", rateLimitError);
-      } else if (!isAllowed) {
-        console.warn(
-          `[RATE LIMIT] IP ${ip} exceeded student login limits in Postgres`,
-        );
-        return NextResponse.json(
-          {
-            error:
-              "Too many login attempts from this IP. Please try again later.",
-            code: "RATE_LIMIT_EXCEEDED",
-          },
-          { status: 429 },
-        );
-      }
-    }
-  }
-
   const {
     data: { user },
     error,
