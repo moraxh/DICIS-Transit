@@ -13,7 +13,7 @@ import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-type ReportStatus = "pending" | "verified" | "false" | "spam";
+type ReportStatus = "pending" | "verified" | "rejected" | "spam";
 
 interface Report {
   id: string;
@@ -41,14 +41,14 @@ const typeLabels: Record<string, string> = {
 const statusLabels: Record<ReportStatus, string> = {
   pending: "Pendiente",
   verified: "Verificado",
-  false: "Falso",
+  rejected: "Rechazado",
   spam: "Spam",
 };
 
 const statusColors: Record<ReportStatus, string> = {
   pending: "text-zinc-400",
   verified: "text-emerald-400",
-  false: "text-red-400",
+  rejected: "text-red-400",
   spam: "text-orange-400",
 };
 

@@ -1,21 +1,6 @@
 import { useRouteRoadPath } from "@hooks/use-route-road-path";
-import { formatTime, getActiveBuses } from "@lib/schedule-utils";
+import { formatTime, getActiveBuses, getMexicoCurrentMins } from "@lib/schedule-utils";
 import type { RouteData } from "@providers/map-provider";
-
-const MEXICO_TZ = "America/Mexico_City";
-
-function getMexicoCurrentMins(): number {
-  const now = new Date();
-  const mxStr = now.toLocaleString("en-US", {
-    timeZone: MEXICO_TZ,
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-  const [h, m, s] = mxStr.split(":").map(Number);
-  return h * 60 + m + s / 60 + now.getMilliseconds() / 60000;
-}
 import L from "leaflet";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Marker, Tooltip } from "react-leaflet";
@@ -328,7 +313,7 @@ function SmoothBusMarker({
 }
 
 export default function BusMarkerLayer({ route }: { route: RouteData }) {
-  const [, setTick] = useState(0);
+  const [tick, setTick] = useState(0);
   const roadPath = useRouteRoadPath(route);
 
   // Low-frequency tick: re-evaluate which buses are active + update tooltip text
@@ -337,10 +322,14 @@ export default function BusMarkerLayer({ route }: { route: RouteData }) {
     return () => clearInterval(interval);
   }, []);
 
-  const buses = getActiveBuses(route);
+  const namedPoints = useMemo(
+    () => route.points.filter((p) => p.point_role !== "waypoint"),
+    [route.points],
+  );
+
+  const buses = useMemo(() => getActiveBuses(route), [route, tick]);
   if (buses.length === 0) return null;
 
-  const namedPoints = route.points.filter((p) => p.point_role !== "waypoint");
   const effectiveDirection = getEffectiveRouteDirection(route);
   const directionLabel =
     effectiveDirection === "from_dicis"

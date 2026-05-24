@@ -21,7 +21,7 @@ export default async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (error) {
-    if (error.code === "user_not_found") {
+    if (error.code === "user_not_found" || error.status === 403) {
       await supabase.auth.signOut();
 
       const cookieStore = await cookies();

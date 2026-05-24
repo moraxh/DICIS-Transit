@@ -74,6 +74,26 @@ export async function POST(request: NextRequest) {
 
     // Generate anonymous session for student
     const supabase = await createClient();
+
+    const { data: rateLimitAllowed, error: rateLimitError } =
+      await supabase.rpc("check_and_increment_login_limit", {
+        client_ip: ip,
+      });
+
+    if (rateLimitError) {
+      console.error("Student login rate limit error:", rateLimitError);
+      return NextResponse.json(
+        { error: "Unable to validate login rate limit", code: "RATE_LIMIT_CHECK_FAILED" },
+        { status: 500 },
+      );
+    }
+
+    if (!rateLimitAllowed) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Try again later.", code: "RATE_LIMITED" },
+        { status: 429 },
+      );
+    }
     const { data: authData, error } = await supabase.auth.signInAnonymously({
       options: {
         data: {

@@ -71,11 +71,15 @@ export default function HomeTab() {
           .or("valid_to.is.null,valid_to.gt.now()"),
       ]);
 
-      if (noticesRes.data) {
+      if (noticesRes.error) {
+        console.error("Error loading notices:", noticesRes.error);
+      } else if (noticesRes.data) {
         setUrgentCount(noticesRes.data.length);
         setFirstUrgent(noticesRes.data[0]?.title ?? null);
       }
-      if (modsRes.data) {
+      if (modsRes.error) {
+        console.error("Error loading modifications:", modsRes.error);
+      } else if (modsRes.data) {
         setModCount(modsRes.data.length);
         setFirstMod(modsRes.data[0]?.description ?? null);
       }

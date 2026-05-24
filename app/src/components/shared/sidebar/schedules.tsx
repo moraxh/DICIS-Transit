@@ -215,11 +215,12 @@ export default function SchedulesTab() {
   const [direction, setDirection] = useState<DirectionType>("Ida");
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
 
+  const [userPosition, setUserPosition] = useState<GeolocationPosition | null>(null);
+
   useEffect(() => {
     setMounted(true);
     setCurrentTime(new Date());
 
-    // Update current time every minute
     const timeInterval = setInterval(() => {
       setCurrentTime(new Date());
     }, 60000);
@@ -227,32 +228,30 @@ export default function SchedulesTab() {
     const date = new Date();
     const day = date.getDay();
 
-    // Auto-select day based on current day (0=Sunday, 6=Saturday)
     if (day === 6) {
       setSchedule("Sábado");
     } else if (day >= 1 && day <= 5) {
       setSchedule("L-V");
     }
 
-    const DICIS_LAT = 20.549879054215197;
-    const DICIS_LNG = -101.2008414859346;
-    const PROXIMITY_THRESHOLD_M = 1500;
+    const hour = date.getHours();
 
     if (typeof navigator !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          setUserPosition(position);
           const { latitude, longitude } = position.coords;
+          const DICIS_LAT = 20.549879054215197;
+          const DICIS_LNG = -101.2008414859346;
           const distanceToDICIS = haversineMeters(latitude, longitude, DICIS_LAT, DICIS_LNG);
-          setDirection(distanceToDICIS <= PROXIMITY_THRESHOLD_M ? "Regreso" : "Ida");
+          setDirection(distanceToDICIS <= 1500 ? "Regreso" : "Ida");
         },
         () => {
-          const hour = date.getHours();
           setDirection(hour >= 13 ? "Regreso" : "Ida");
         },
         { enableHighAccuracy: false, timeout: 5000, maximumAge: 600000 },
       );
     } else {
-      const hour = date.getHours();
       if (hour >= 13) setDirection("Regreso");
     }
 
@@ -280,7 +279,6 @@ export default function SchedulesTab() {
     if (!isLoading && filteredRoutes.length > 0) {
       const isCurrentValid = filteredRoutes.some((r) => r.id === activeRouteId);
 
-      // Only auto-select if current route is not valid (on init or filter change)
       if (!isCurrentValid) {
         const DICIS_LAT = 20.549879054215197;
         const DICIS_LNG = -101.2008414859346;
@@ -302,21 +300,15 @@ export default function SchedulesTab() {
           setActiveRouteId(bestRouteId);
         };
 
-        if (typeof navigator !== "undefined" && navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              const { latitude, longitude } = position.coords;
-              findClosestRoute(latitude, longitude);
-            },
-            () => { findClosestRoute(DICIS_LAT, DICIS_LNG); },
-            { enableHighAccuracy: false, timeout: 5000, maximumAge: 600000 },
-          );
+        // Reuse cached position from mounting effect — no second geolocation prompt
+        if (userPosition) {
+          findClosestRoute(userPosition.coords.latitude, userPosition.coords.longitude);
         } else {
           findClosestRoute(DICIS_LAT, DICIS_LNG);
         }
       }
     }
-  }, [filteredRoutes, activeRouteId, setActiveRouteId, isLoading]);
+  }, [filteredRoutes, activeRouteId, setActiveRouteId, isLoading, userPosition]);
 
   const routesWithSchedules = useMemo(() => {
     return filteredRoutes.map((route) => {

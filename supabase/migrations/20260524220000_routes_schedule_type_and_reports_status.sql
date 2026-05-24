@@ -13,7 +13,7 @@ update public.routes
 -- DB-3: Add status to reports for moderation workflow
 alter table public.reports
   add column if not exists status text not null default 'pending'
-    check (status in ('pending', 'verified', 'false', 'spam'));
+    check (status in ('pending', 'verified', 'rejected', 'spam'));
 
 -- Index on status for admin filter queries
 create index if not exists idx_reports_status

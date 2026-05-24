@@ -4,9 +4,12 @@ import { useEffect, useState } from "react";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 const MAX_RETRIES = 2;
+const RETRY_BACKOFF_MS = [2000, 8000]; // exponential: 2s, 8s
 
 // Module-level dedup: one fetch per route id across all consumers
 const inFlight = new Map<string, Promise<[number, number][]>>();
+// Track retry state per route at module level so mount/unmount resets don't create storms
+const retryState = new Map<string, { count: number; nextRetryAt: number }>();
 
 interface CacheEntry {
   coords: [number, number][];
@@ -59,11 +62,26 @@ async function fetchRoadPath(route: RouteData): Promise<[number, number][]> {
 
 export function useRouteRoadPath(route: RouteData): [number, number][] {
   const [path, setPath] = useState<[number, number][]>([]);
-  const [retryCount, setRetryCount] = useState(0);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     const key = String(route.id);
+    const state = retryState.get(key);
+
+    // If within backoff window, schedule retry after delay instead of firing immediately
+    if (state && state.count > 0) {
+      const wait = state.nextRetryAt - Date.now();
+      if (wait > 0) {
+        const timer = setTimeout(() => {
+          if (!cancelled) setTick((t) => t + 1);
+        }, wait);
+        return () => {
+          cancelled = true;
+          clearTimeout(timer);
+        };
+      }
+    }
 
     let promise = inFlight.get(key);
     if (!promise) {
@@ -73,21 +91,29 @@ export function useRouteRoadPath(route: RouteData): [number, number][] {
 
     promise
       .then((coords) => {
-        if (!cancelled && coords.length > 0) setPath(coords);
+        if (!cancelled && coords.length > 0) {
+          retryState.delete(key);
+          setPath(coords);
+        }
       })
       .catch(() => {
-        if (!cancelled && retryCount < MAX_RETRIES) {
-          if (typeof window !== "undefined") {
-            localStorage.removeItem(`route_mapbox_${route.id}`);
+        if (!cancelled) {
+          const cur = retryState.get(key) ?? { count: 0, nextRetryAt: 0 };
+          if (cur.count < MAX_RETRIES) {
+            if (typeof window !== "undefined") {
+              localStorage.removeItem(`route_mapbox_${route.id}`);
+            }
+            const backoff = RETRY_BACKOFF_MS[cur.count] ?? RETRY_BACKOFF_MS[RETRY_BACKOFF_MS.length - 1];
+            retryState.set(key, { count: cur.count + 1, nextRetryAt: Date.now() + backoff });
+            setTick((t) => t + 1);
           }
-          setRetryCount((c) => c + 1);
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [route, retryCount]);
+  }, [route, tick]);
 
   return path;
 }

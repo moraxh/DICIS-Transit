@@ -18,7 +18,8 @@ function CinematicFlight() {
   useEffect(() => {
     if (routes.length === 0) return;
 
-    const dicisPoint = routes[0]?.points?.find((p) => p.stop_name === "DICIS");
+    const dicisRoute = routes.find((r) => r.direction === "from_dicis") ?? routes[0];
+    const dicisPoint = dicisRoute?.points?.find((p) => p.point_role === "end");
     const targetCenter: [number, number] = dicisPoint
       ? [dicisPoint.latitude, dicisPoint.longitude]
       : [20.549879054215197, -101.2008414859346];

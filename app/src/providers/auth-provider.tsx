@@ -9,6 +9,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { toast } from "sonner";
@@ -31,9 +32,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userData, setUserData] = useState<User | null>(null);
   const [userType, setUserType] = useState<"student" | "admin" | null>(null);
   const [credibilityScore, setCredibilityScore] = useState<number | null>(null);
+  const loginInProgressRef = useRef(false);
 
   const studentLogin = useCallback(
     async (visitorId: string) => {
+      if (loginInProgressRef.current) return;
+      loginInProgressRef.current = true;
       let success = false;
       try {
         const response = await fetch("/api/auth/login/student", {
@@ -50,12 +54,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         toast.success("Bienvenido estudiante");
-        // Do NOT set userType here — onAuthStateChange SIGNED_IN will call getCurrentUser
-        // which sets userType + credibilityScore + userData atomically (HIGH-4 fix)
         success = true;
       } catch (error) {
         toast.error("Error al iniciar sesión como estudiante");
         console.error("Error during student login:", error);
+      } finally {
+        loginInProgressRef.current = false;
       }
 
       if (success) {

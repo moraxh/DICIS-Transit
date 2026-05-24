@@ -14,6 +14,11 @@ function getMexicoMinutes(): number {
   return h * 60 + m;
 }
 
+export function getMexicoCurrentMins(): number {
+  const { hours, minutes, seconds, milliseconds } = getMexicoTimeComponents();
+  return hours * 60 + minutes + seconds / 60 + milliseconds / 60000;
+}
+
 function getMexicoTimeComponents(): {
   hours: number;
   minutes: number;
@@ -64,6 +69,7 @@ export function getMinutesUntil(departureTime: string): number {
 }
 
 export function formatMinutesRelative(minutes: number): string {
+  if (minutes <= 0) return "ahora";
   if (minutes < 60) return `en ${minutes} min`;
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
@@ -86,7 +92,12 @@ export function getNextScheduleIndex(
 }
 
 export function getTodayPgDay(): number {
-  const jsDay = new Date().getDay();
+  const mxStr = new Date().toLocaleString("en-US", {
+    timeZone: MEXICO_TZ,
+    weekday: "long",
+  });
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const jsDay = days.indexOf(mxStr);
   return jsDay === 0 ? 7 : jsDay;
 }
 

@@ -143,11 +143,16 @@ export default function UnauthorizedPage() {
       </section>
 
       {isHelpOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="help-modal-title"
+        >
           <div className="w-full max-w-lg rounded-2xl border bg-background shadow-xl">
             <div className="flex items-start justify-between border-b p-5">
               <div>
-                <h3 className="text-lg font-semibold tracking-tight text-foreground">
+                <h3 id="help-modal-title" className="text-lg font-semibold tracking-tight text-foreground">
                   Como recibir sesion
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">
