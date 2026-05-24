@@ -14,6 +14,7 @@ interface RoutePoint {
   route_name: string;
   route_is_active: boolean;
   route_direction: string;
+  route_schedule_type: string;
   stop_order: number;
   point_role: "start" | "stop" | "waypoint" | "end";
   time_from_previous_mins: number;
@@ -46,6 +47,7 @@ interface RouteData {
   name: string;
   isActive: boolean;
   direction: "to_dicis" | "from_dicis";
+  scheduleType: "weekday" | "saturday" | "sunday";
   points: RoutePoint[];
   schedules: RouteSchedule[];
 }
@@ -69,7 +71,9 @@ export function MapProvider({ children }: { children: ReactNode }) {
   const [routes, setRoutes] = useState<RouteData[]>([]);
   const [activeRouteId, setActiveRouteId] = useState<string | null>(null);
   const [activeStopId, setActiveStopId] = useState<string | null>(null);
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(
+    null,
+  );
   const [reportCounts, setReportCounts] = useState<ReportCount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -78,26 +82,33 @@ export function MapProvider({ children }: { children: ReactNode }) {
     async function loadRoutes() {
       setIsLoading(true);
       try {
-        const [pointsResponse, schedulesResponse, reportsResponse] = await Promise.all([
-          supabase
-            .from("public_route_points")
-            .select("*")
-            .order("stop_order", { ascending: true }),
-          supabase
-            .from("schedules")
-            .select("*")
-            .order("departure_time", { ascending: true }),
-          supabase
-            .from("recent_report_counts")
-            .select("*"),
-        ]);
+        const [pointsResponse, schedulesResponse, reportsResponse] =
+          await Promise.all([
+            supabase
+              .from("public_route_points")
+              .select("route_id,route_name,route_is_active,route_direction,route_schedule_type,stop_order,point_role,time_from_previous_mins,cumulative_minutes,stop_id,stop_name,latitude,longitude")
+              .order("stop_order", { ascending: true }),
+            supabase
+              .from("schedules")
+              .select("id,route_id,departure_time,days_active")
+              .order("departure_time", { ascending: true }),
+            supabase.from("recent_report_counts").select("route_id,stop_id,stop_name,route_name,report_type,report_count,latest_at"),
+          ]);
 
         if (pointsResponse.error) throw pointsResponse.error;
         if (schedulesResponse.error) throw schedulesResponse.error;
-        if (reportsResponse.data) setReportCounts(reportsResponse.data as ReportCount[]);
+        if (reportsResponse.data)
+          setReportCounts(reportsResponse.data as ReportCount[]);
 
         const data = pointsResponse.data;
         const schedulesData = schedulesResponse.data as RouteSchedule[];
+
+        const schedulesByRoute = new Map<string, RouteSchedule[]>();
+        for (const s of schedulesData) {
+          const list = schedulesByRoute.get(s.route_id) ?? [];
+          list.push(s);
+          schedulesByRoute.set(s.route_id, list);
+        }
 
         const routeMap = new Map<string, RouteData>();
         for (const pt of data as RoutePoint[]) {
@@ -106,11 +117,12 @@ export function MapProvider({ children }: { children: ReactNode }) {
               id: pt.route_id,
               name: pt.route_name,
               isActive: pt.route_is_active,
-              direction: (pt.route_direction as "to_dicis" | "from_dicis") ?? "to_dicis",
+              direction:
+                (pt.route_direction as "to_dicis" | "from_dicis") ?? "to_dicis",
+              scheduleType:
+                (pt.route_schedule_type as "weekday" | "saturday" | "sunday") ?? "weekday",
               points: [],
-              schedules: schedulesData.filter(
-                (s) => s.route_id === pt.route_id,
-              ),
+              schedules: schedulesByRoute.get(pt.route_id) ?? [],
             });
           }
           routeMap.get(pt.route_id)?.points.push(pt);
@@ -137,6 +149,15 @@ export function MapProvider({ children }: { children: ReactNode }) {
     }
 
     loadRoutes();
+  }, []);
+
+  // PERF-2: Poll reportCounts every 60s so map markers reflect new student reports
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const { data } = await supabase.from("recent_report_counts").select("route_id,stop_id,stop_name,route_name,report_type,report_count,latest_at");
+      if (data) setReportCounts(data as ReportCount[]);
+    }, 60_000);
+    return () => clearInterval(interval);
   }, []);
 
   return (

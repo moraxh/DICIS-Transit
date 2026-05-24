@@ -8,8 +8,8 @@ import {
   DialogTitle,
 } from "@components/ui/dialog";
 import { Input } from "@components/ui/input";
-import { supabase } from "@lib/supabase/client";
 import { getTodaysSchedules } from "@lib/schedule-utils";
+import { supabase } from "@lib/supabase/client";
 import { useAuth } from "@providers/auth-provider";
 import { useMapData } from "@providers/map-provider";
 import {
@@ -84,6 +84,15 @@ export default function ReportSheet({ open, onOpenChange }: ReportSheetProps) {
 
   async function handleSubmit() {
     if (!selectedRouteId || !selectedType || !userData) return;
+
+    if (selectedType === "delay") {
+      const delayValue = Number(delayMins);
+      if (!Number.isFinite(delayValue) || delayValue <= 0) {
+        toast.error("Ingresa un retraso válido en minutos.");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     const payload: Record<string, unknown> = {
@@ -119,6 +128,7 @@ export default function ReportSheet({ open, onOpenChange }: ReportSheetProps) {
           <div className="flex items-center gap-3">
             {step > 1 && (
               <button
+                type="button"
                 onClick={() => setStep((s) => s - 1)}
                 className="text-zinc-400 hover:text-white transition-colors shrink-0"
               >
@@ -130,12 +140,13 @@ export default function ReportSheet({ open, onOpenChange }: ReportSheetProps) {
               Enviar reporte
             </DialogTitle>
             <div className="flex items-center gap-3 shrink-0">
-              <span className="text-xs text-zinc-600">
-                Paso {step} de 4
-              </span>
+              <span className="text-xs text-zinc-600">Paso {step} de 4</span>
               <DialogClose
                 render={
-                  <button className="text-zinc-400 hover:text-white transition-colors" />
+                  <button
+                    type="button"
+                    className="text-zinc-400 hover:text-white transition-colors"
+                  />
                 }
                 onClick={resetAndClose}
               >
@@ -195,6 +206,7 @@ export default function ReportSheet({ open, onOpenChange }: ReportSheetProps) {
                   ) : (
                     todayRoutes.map((route) => (
                       <button
+                        type="button"
                         key={route.id}
                         onClick={() => {
                           setSelectedRouteId(route.id);
@@ -206,7 +218,9 @@ export default function ReportSheet({ open, onOpenChange }: ReportSheetProps) {
                             : "border-zinc-800 bg-zinc-900/50 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900"
                         }`}
                       >
-                        <span className="text-sm font-medium">{route.name}</span>
+                        <span className="text-sm font-medium">
+                          {route.name}
+                        </span>
                       </button>
                     ))
                   )}
@@ -225,6 +239,7 @@ export default function ReportSheet({ open, onOpenChange }: ReportSheetProps) {
                     ¿En qué parada? (opcional)
                   </p>
                   <button
+                    type="button"
                     onClick={() => {
                       setSelectedStopId("");
                       setStep(3);
@@ -235,6 +250,7 @@ export default function ReportSheet({ open, onOpenChange }: ReportSheetProps) {
                   </button>
                   {namedStops.map((stop) => (
                     <button
+                      type="button"
                       key={stop.stop_id}
                       onClick={() => {
                         setSelectedStopId(stop.stop_id);
@@ -265,6 +281,7 @@ export default function ReportSheet({ open, onOpenChange }: ReportSheetProps) {
                   <p className="text-xs text-zinc-500 mb-1">¿Qué ocurrió?</p>
                   {reportTypes.map((rt) => (
                     <button
+                      type="button"
                       key={rt.value}
                       onClick={() => {
                         setSelectedType(rt.value);
@@ -325,10 +342,14 @@ export default function ReportSheet({ open, onOpenChange }: ReportSheetProps) {
 
                   {selectedType === "delay" && (
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs text-zinc-500">
+                      <label
+                        htmlFor="delay-mins"
+                        className="text-xs text-zinc-500"
+                      >
                         ¿Cuántos minutos de retraso?
                       </label>
                       <Input
+                        id="delay-mins"
                         type="number"
                         min="1"
                         max="120"
@@ -343,8 +364,7 @@ export default function ReportSheet({ open, onOpenChange }: ReportSheetProps) {
                   <Button
                     onClick={handleSubmit}
                     disabled={
-                      isSubmitting ||
-                      (selectedType === "delay" && !delayMins)
+                      isSubmitting || (selectedType === "delay" && !delayMins)
                     }
                     className="w-full bg-white text-black hover:bg-zinc-200 font-semibold"
                   >

@@ -1,5 +1,14 @@
 "use client";
 
+import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@components/ui/table";
 import { supabase } from "@lib/supabase/client";
 import { Bus, Megaphone, Route, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -32,7 +41,9 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     async function load() {
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const yesterday = new Date(
+        Date.now() - 24 * 60 * 60 * 1000,
+      ).toISOString();
 
       const [routesRes, noticesRes, modsRes, reportsCountRes, reportsRes] =
         await Promise.all([
@@ -125,16 +136,21 @@ export default function AdminDashboardPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {cards.map(({ label, value, icon: Icon, color, bg }) => (
-          <div
-            key={label}
-            className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5"
-          >
-            <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center mb-3`}>
-              <Icon size={18} className={color} />
-            </div>
-            <p className="text-2xl font-bold text-white">{value}</p>
-            <p className="text-xs text-zinc-500 mt-0.5">{label}</p>
-          </div>
+          <Card key={label} className="bg-zinc-900/50 border-zinc-800">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-zinc-500">
+                {label}
+              </CardTitle>
+              <div
+                className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center`}
+              >
+                <Icon size={16} className={color} />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-white">{value}</div>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
@@ -143,29 +159,37 @@ export default function AdminDashboardPage() {
           <h2 className="text-sm font-semibold text-zinc-300 mb-3">
             Últimos reportes
           </h2>
-          <div className="rounded-xl border border-zinc-800 overflow-hidden">
-            {recentReports.map((report, i) => (
-              <div
-                key={report.id}
-                className={`flex items-center gap-3 px-5 py-3 text-sm ${
-                  i < recentReports.length - 1
-                    ? "border-b border-zinc-800/60"
-                    : ""
-                }`}
-              >
-                <span className="text-zinc-400 flex-1">
-                  {typeLabels[report.report_type] ?? report.report_type}
-                </span>
-                <span className="text-xs text-zinc-600">
-                  {new Date(report.created_at).toLocaleString("es-MX", {
-                    month: "short",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-              </div>
-            ))}
+          <div className="rounded-xl border border-zinc-800 overflow-hidden bg-zinc-900/30">
+            <Table>
+              <TableHeader className="bg-zinc-900/50">
+                <TableRow className="border-zinc-800 hover:bg-transparent">
+                  <TableHead className="text-zinc-400">Tipo</TableHead>
+                  <TableHead className="text-zinc-400 text-right">
+                    Fecha
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentReports.map((report) => (
+                  <TableRow
+                    key={report.id}
+                    className="border-zinc-800/60 hover:bg-white/2"
+                  >
+                    <TableCell className="text-zinc-400">
+                      {typeLabels[report.report_type] ?? report.report_type}
+                    </TableCell>
+                    <TableCell className="text-xs text-zinc-600 text-right">
+                      {new Date(report.created_at).toLocaleString("es-MX", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         </div>
       )}

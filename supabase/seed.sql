@@ -1,6 +1,83 @@
 -- Clear previous data if it exists (optional)
 TRUNCATE TABLE route_stops, schedules, routes, stops RESTART IDENTITY CASCADE;
 
+-- Controlled default admin for local/dev seed only.
+DO $$
+DECLARE
+    admin_user_id uuid;
+    admin_email text := 'admin@dicis.local';
+    admin_password text := 'admin123456';
+BEGIN
+    SELECT id INTO admin_user_id
+    FROM auth.users
+    WHERE email = admin_email
+    LIMIT 1;
+
+    IF admin_user_id IS NULL THEN
+        admin_user_id := gen_random_uuid();
+
+        INSERT INTO auth.users (
+            instance_id,
+            id,
+            aud,
+            role,
+            email,
+            encrypted_password,
+            email_confirmed_at,
+            raw_app_meta_data,
+            raw_user_meta_data,
+            created_at,
+            updated_at,
+            confirmation_token,
+            email_change,
+            email_change_token_new,
+            recovery_token
+        ) VALUES (
+            '00000000-0000-0000-0000-000000000000',
+            admin_user_id,
+            'authenticated',
+            'authenticated',
+            admin_email,
+            crypt(admin_password, gen_salt('bf')),
+            now(),
+            jsonb_build_object('provider', 'email', 'providers', ARRAY['email'], 'app_role', 'admin'),
+            jsonb_build_object('bootstrap_admin', true),
+            now(),
+            now(),
+            '',
+            '',
+            '',
+            ''
+        );
+
+        INSERT INTO auth.identities (
+            id,
+            user_id,
+            identity_data,
+            provider,
+            provider_id,
+            last_sign_in_at,
+            created_at,
+            updated_at
+        ) VALUES (
+            gen_random_uuid(),
+            admin_user_id,
+            jsonb_build_object('sub', admin_user_id::text, 'email', admin_email),
+            'email',
+            admin_user_id::text,
+            now(),
+            now(),
+            now()
+        )
+        ON CONFLICT (provider, provider_id) DO NOTHING;
+    END IF;
+
+    INSERT INTO public.users (id, role, credibility_score)
+    VALUES (admin_user_id, 'admin', 100)
+    ON CONFLICT (id) DO UPDATE
+    SET role = EXCLUDED.role;
+END $$;
+
 DO $$
 DECLARE
     -- Routes (Outbound)

@@ -1,5 +1,14 @@
 "use client";
 
+import {
+  formatMinutesRelative as formatMinutes,
+  formatTime,
+  getMinutesUntil,
+  getNextScheduleIndex,
+  getTodayPgDay,
+  haversineMeters,
+  isSchedulePassed,
+} from "@lib/schedule-utils";
 import { useMapData } from "@providers/map-provider";
 import clsx from "clsx";
 import {
@@ -20,51 +29,6 @@ import { useEffect, useMemo, useState } from "react";
 
 type ScheduleType = "L-V" | "Sábado";
 type DirectionType = "Ida" | "Regreso";
-
-function formatTime(time24: string) {
-  const [hRaw, m] = time24.split(":");
-  const h = Number(hRaw);
-  const ampm = h >= 12 ? "p.m." : "a.m.";
-  const h12 = h % 12 === 0 ? 12 : h % 12;
-  return `${h12}:${m} ${ampm}`;
-}
-
-function getMinutesUntil(departureTime: string): number {
-  const now = new Date();
-  const [h, m] = departureTime.split(":").map(Number);
-  const scheduleMinutes = h * 60 + m;
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  return scheduleMinutes - currentMinutes;
-}
-
-function formatMinutes(minutes: number): string {
-  if (minutes < 60) return `en ${minutes} min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m > 0 ? `en ${h}h ${m}m` : `en ${h}h`;
-}
-
-function isSchedulePassed(departureTime: string): boolean {
-  const now = new Date();
-  const [h, m] = departureTime.split(":").map(Number);
-  const scheduleMinutes = h * 60 + m;
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  return currentMinutes > scheduleMinutes;
-}
-
-function getNextScheduleIndex(schedules: { departure_time: string }[]): number {
-  const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-  for (let i = 0; i < schedules.length; i++) {
-    const [h, m] = schedules[i].departure_time.split(":").map(Number);
-    const scheduleMinutes = h * 60 + m;
-    if (currentMinutes <= scheduleMinutes) {
-      return i;
-    }
-  }
-  return -1;
-}
 
 interface ScheduleItem {
   id: string;
@@ -89,7 +53,7 @@ function ScheduleList({ schedules }: { schedules: ScheduleItem[] }) {
     nextIdx >= 0 && getMinutesUntil(schedules[nextIdx].departure_time) < 10;
 
   return (
-    <div key={tick} className="space-y-3">
+    <div className="space-y-3">
       {nextIdx > 0 && (
         <div className="flex items-center gap-2 px-2">
           <History className="w-3 h-3 text-zinc-400 dark:text-zinc-500" />
@@ -196,8 +160,16 @@ function ScheduleList({ schedules }: { schedules: ScheduleItem[] }) {
 
                 <div className="flex gap-0.5">
                   {(() => {
-                    const today = new Date().getDay();
-                    const dayLabels = ["D", "L", "M", "M", "J", "V", "S"];
+                    const today = getTodayPgDay();
+                    const dayLabels: Record<number, string> = {
+                      1: "L",
+                      2: "M",
+                      3: "M",
+                      4: "J",
+                      5: "V",
+                      6: "S",
+                      7: "D",
+                    };
                     return sch.days_active?.map((dayNum) => {
                       const isToday = dayNum === today;
                       return (
@@ -262,58 +234,26 @@ export default function SchedulesTab() {
       setSchedule("L-V");
     }
 
-    // DICIS coordinates for geolocation detection
     const DICIS_LAT = 20.549879054215197;
     const DICIS_LNG = -101.2008414859346;
-    const PROXIMITY_THRESHOLD_KM = 1.5; // Consider "at DICIS" if within 1.5km
+    const PROXIMITY_THRESHOLD_M = 1500;
 
-    // Calculate distance between two coordinates using Haversine formula
-    const getDistanceFromDICIS = (lat: number, lng: number): number => {
-      const R = 6371; // Earth's radius in km
-      const dLat = (lat - DICIS_LAT) * (Math.PI / 180);
-      const dLng = (lng - DICIS_LNG) * (Math.PI / 180);
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(DICIS_LAT * (Math.PI / 180)) *
-          Math.cos(lat * (Math.PI / 180)) *
-          Math.sin(dLng / 2) *
-          Math.sin(dLng / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    };
-
-    // Try to get user location for direction detection
     if (typeof navigator !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          const distanceToDICIS = getDistanceFromDICIS(latitude, longitude);
-
-          // If user is at DICIS (within threshold), they likely want to go back (Regreso)
-          // If user is far from DICIS, they likely want to go to DICIS (Ida)
-          if (distanceToDICIS <= PROXIMITY_THRESHOLD_KM) {
-            setDirection("Regreso");
-          } else {
-            setDirection("Ida");
-          }
+          const distanceToDICIS = haversineMeters(latitude, longitude, DICIS_LAT, DICIS_LNG);
+          setDirection(distanceToDICIS <= PROXIMITY_THRESHOLD_M ? "Regreso" : "Ida");
         },
         () => {
-          // Fallback: use time-based detection if geolocation fails
           const hour = date.getHours();
-          if (hour >= 13) {
-            setDirection("Regreso");
-          } else {
-            setDirection("Ida");
-          }
+          setDirection(hour >= 13 ? "Regreso" : "Ida");
         },
         { enableHighAccuracy: false, timeout: 5000, maximumAge: 600000 },
       );
     } else {
-      // Fallback for browsers without geolocation
       const hour = date.getHours();
-      if (hour >= 13) {
-        setDirection("Regreso");
-      }
+      if (hour >= 13) setDirection("Regreso");
     }
 
     return () => clearInterval(timeInterval);
@@ -321,23 +261,17 @@ export default function SchedulesTab() {
 
   const filteredRoutes = useMemo(() => {
     return routes.filter((r) => {
-      const name = r.name.toLowerCase();
       const matchesSchedule =
         schedule === "Sábado"
-          ? name.includes("sab") || name.includes("sáb")
-          : !name.includes("sab") && !name.includes("sáb");
+          ? r.scheduleType === "saturday"
+          : r.scheduleType === "weekday";
 
-      let directionPass = true;
-      if (direction === "Ida") {
-        directionPass = name.includes("a dicis") || name.includes("ida");
-      } else {
-        directionPass =
-          name.includes("dicis a") ||
-          name.includes("regreso") ||
-          name.includes("a salamanca");
-      }
+      const matchesDirection =
+        direction === "Ida"
+          ? r.direction === "to_dicis"
+          : r.direction === "from_dicis";
 
-      return matchesSchedule && directionPass;
+      return matchesSchedule && matchesDirection;
     });
   }, [routes, schedule, direction]);
 
@@ -348,44 +282,16 @@ export default function SchedulesTab() {
 
       // Only auto-select if current route is not valid (on init or filter change)
       if (!isCurrentValid) {
-        // DICIS coordinates for geolocation detection
         const DICIS_LAT = 20.549879054215197;
         const DICIS_LNG = -101.2008414859346;
 
-        // Calculate distance between two coordinates using Haversine formula
-        const getDistance = (
-          lat1: number,
-          lng1: number,
-          lat2: number,
-          lng2: number,
-        ): number => {
-          const R = 6371; // Earth's radius in km
-          const dLat = (lat2 - lat1) * (Math.PI / 180);
-          const dLng = (lng2 - lng1) * (Math.PI / 180);
-          const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(lat1 * (Math.PI / 180)) *
-              Math.cos(lat2 * (Math.PI / 180)) *
-              Math.sin(dLng / 2) *
-              Math.sin(dLng / 2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          return R * c;
-        };
-
-        // Find closest route by minimum distance to any of its points
         const findClosestRoute = (userLat: number, userLng: number) => {
           let bestRouteId = filteredRoutes[0].id;
           let minDistance = Infinity;
 
           for (const route of filteredRoutes) {
-            // Find minimum distance to any point in this route
             for (const point of route.points ?? []) {
-              const dist = getDistance(
-                userLat,
-                userLng,
-                point.latitude,
-                point.longitude,
-              );
+              const dist = haversineMeters(userLat, userLng, point.latitude, point.longitude);
               if (dist < minDistance) {
                 minDistance = dist;
                 bestRouteId = route.id;
@@ -396,21 +302,16 @@ export default function SchedulesTab() {
           setActiveRouteId(bestRouteId);
         };
 
-        // Try to get user location
         if (typeof navigator !== "undefined" && navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
             (position) => {
               const { latitude, longitude } = position.coords;
               findClosestRoute(latitude, longitude);
             },
-            () => {
-              // Fallback: use DICIS location as reference (will select route closest to DICIS)
-              findClosestRoute(DICIS_LAT, DICIS_LNG);
-            },
+            () => { findClosestRoute(DICIS_LAT, DICIS_LNG); },
             { enableHighAccuracy: false, timeout: 5000, maximumAge: 600000 },
           );
         } else {
-          // Fallback: use DICIS location
           findClosestRoute(DICIS_LAT, DICIS_LNG);
         }
       }

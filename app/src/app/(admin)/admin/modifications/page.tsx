@@ -1,10 +1,12 @@
 "use client";
 
+import { Badge } from "@components/ui/badge";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import { supabase } from "@lib/supabase/client";
+import { useAuth } from "@providers/auth-provider";
 import { CheckCircle2, Loader2, Plus, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface RouteOption {
@@ -23,6 +25,7 @@ interface Modification {
 }
 
 export default function AdminModificationsPage() {
+  const { userData } = useAuth();
   const [modifications, setModifications] = useState<Modification[]>([]);
   const [routes, setRoutes] = useState<RouteOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,25 +38,25 @@ export default function AdminModificationsPage() {
     valid_to: "",
   });
 
-  async function load() {
+  const load = useCallback(async () => {
     const [modsRes, routesRes] = await Promise.all([
       supabase
         .from("route_modifications")
-        .select("*")
+        .select("id,route_id,description,status,valid_from,valid_to,created_at")
         .order("created_at", { ascending: false }),
       supabase.from("routes").select("id, name").eq("is_active", true),
     ]);
     if (modsRes.data) setModifications(modsRes.data);
     if (routesRes.data) setRoutes(routesRes.data);
     setIsLoading(false);
-  }
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   async function handleCreate() {
-    if (!form.description) return;
+    if (!form.description || !userData) return;
     setSaving(true);
 
     const payload: Record<string, string | null> = {
@@ -62,9 +65,12 @@ export default function AdminModificationsPage() {
       status: "active",
       route_id: form.route_id || null,
       valid_to: form.valid_to ? new Date(form.valid_to).toISOString() : null,
+      admin_id: userData.id,
     };
 
-    const { error } = await supabase.from("route_modifications").insert(payload);
+    const { error } = await supabase
+      .from("route_modifications")
+      .insert(payload);
     setSaving(false);
 
     if (error) {
@@ -86,7 +92,7 @@ export default function AdminModificationsPage() {
   async function handleResolve(id: string) {
     const { error } = await supabase
       .from("route_modifications")
-      .update({ status: "resolved" })
+      .update({ status: "resolved", admin_id: userData?.id ?? null })
       .eq("id", id);
 
     if (error) {
@@ -147,28 +153,29 @@ export default function AdminModificationsPage() {
                   <span className="text-xs text-zinc-500">
                     {routeName(mod.route_id)}
                   </span>
-                  <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded-full border ${
+                  <Badge
+                    variant="outline"
+                    className={`font-normal ${
                       mod.status === "active"
-                        ? "text-orange-400 border-orange-500/30"
+                        ? "text-orange-400 border-orange-500/30 bg-orange-500/10"
                         : "text-zinc-500 border-zinc-700"
                     }`}
                   >
                     {mod.status === "active" ? "Activa" : "Resuelta"}
-                  </span>
+                  </Badge>
                 </div>
                 <p className="text-sm text-zinc-300 leading-relaxed">
                   {mod.description}
                 </p>
                 {mod.valid_to && (
                   <p className="text-[10px] text-zinc-600 mt-1">
-                    Hasta:{" "}
-                    {new Date(mod.valid_to).toLocaleDateString("es-MX")}
+                    Hasta: {new Date(mod.valid_to).toLocaleDateString("es-MX")}
                   </p>
                 )}
               </div>
               {mod.status === "active" && (
                 <button
+                  type="button"
                   onClick={() => handleResolve(mod.id)}
                   className="text-zinc-500 hover:text-emerald-400 transition-colors shrink-0 mt-0.5"
                   title="Marcar como resuelta"
@@ -189,6 +196,7 @@ export default function AdminModificationsPage() {
                 Nueva modificación
               </h2>
               <button
+                type="button"
                 onClick={() => setShowModal(false)}
                 className="text-zinc-500 hover:text-white"
               >
@@ -198,10 +206,11 @@ export default function AdminModificationsPage() {
 
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-zinc-400">
+                <label htmlFor="mod-route" className="text-xs text-zinc-400">
                   Ruta (opcional)
                 </label>
                 <select
+                  id="mod-route"
                   value={form.route_id}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, route_id: e.target.value }))
@@ -218,8 +227,14 @@ export default function AdminModificationsPage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-zinc-400">Descripción</label>
+                <label
+                  htmlFor="mod-description"
+                  className="text-xs text-zinc-400"
+                >
+                  Descripción
+                </label>
                 <textarea
+                  id="mod-description"
                   value={form.description}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, description: e.target.value }))
@@ -232,8 +247,14 @@ export default function AdminModificationsPage() {
 
               <div className="flex gap-3">
                 <div className="flex flex-col gap-1.5 flex-1">
-                  <label className="text-xs text-zinc-400">Desde</label>
+                  <label
+                    htmlFor="mod-valid-from"
+                    className="text-xs text-zinc-400"
+                  >
+                    Desde
+                  </label>
                   <Input
+                    id="mod-valid-from"
                     type="date"
                     value={form.valid_from}
                     onChange={(e) =>
@@ -243,10 +264,14 @@ export default function AdminModificationsPage() {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5 flex-1">
-                  <label className="text-xs text-zinc-400">
+                  <label
+                    htmlFor="mod-valid-to"
+                    className="text-xs text-zinc-400"
+                  >
                     Hasta (opcional)
                   </label>
                   <Input
+                    id="mod-valid-to"
                     type="date"
                     value={form.valid_to}
                     onChange={(e) =>

@@ -1,10 +1,24 @@
+import { useRouteRoadPath } from "@hooks/use-route-road-path";
 import { formatTime, getActiveBuses } from "@lib/schedule-utils";
 import type { RouteData } from "@providers/map-provider";
-import L from "leaflet";
-import { useEffect, useRef, useState } from "react";
-import { Marker, Tooltip } from "react-leaflet";
 
-const TICK_MS = 1000;
+const MEXICO_TZ = "America/Mexico_City";
+
+function getMexicoCurrentMins(): number {
+  const now = new Date();
+  const mxStr = now.toLocaleString("en-US", {
+    timeZone: MEXICO_TZ,
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const [h, m, s] = mxStr.split(":").map(Number);
+  return h * 60 + m + s / 60 + now.getMilliseconds() / 60000;
+}
+import L from "leaflet";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Marker, Tooltip } from "react-leaflet";
 
 function makeBusIcon(
   bg: string,
@@ -33,7 +47,7 @@ function makeBusIcon(
       <div class="bus-heading" style="
         position: absolute; inset: 0;
         transform: rotate(${heading}deg);
-        transition: transform ${TICK_MS}ms linear;
+        transition: transform 120ms linear;
         pointer-events: none;
       ">
         <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="${border}" stroke="none" style="position:absolute; top:-5px; left:50%; transform:translateX(-50%); opacity:0.9;">
@@ -63,8 +77,22 @@ function makeBusIcon(
 function getBusIcon(direction: string, index: number, heading: number) {
   const delay = index * 0.12;
   return direction === "from_dicis"
-    ? makeBusIcon("#3b82f6", "#1d4ed8", "white", "rgba(59,130,246,0.2)", heading, delay)
-    : makeBusIcon("#f97316", "#c2410c", "white", "rgba(249,115,22,0.2)", heading, delay);
+    ? makeBusIcon(
+        "#3b82f6",
+        "#1d4ed8",
+        "white",
+        "rgba(59,130,246,0.2)",
+        heading,
+        delay,
+      )
+    : makeBusIcon(
+        "#f97316",
+        "#c2410c",
+        "white",
+        "rgba(249,115,22,0.2)",
+        heading,
+        delay,
+      );
 }
 
 function segDist(a: [number, number], b: [number, number]): number {
@@ -119,70 +147,178 @@ function pointAlongPathSegment(
   return path[endIdx];
 }
 
-function bearingDeg(
-  from: [number, number],
-  to: [number, number],
-): number {
+function bearingDeg(from: [number, number], to: [number, number]): number {
   const φ1 = (from[0] * Math.PI) / 180;
   const φ2 = (to[0] * Math.PI) / 180;
   const Δλ = ((to[1] - from[1]) * Math.PI) / 180;
   const y = Math.sin(Δλ) * Math.cos(φ2);
   const x =
-    Math.cos(φ1) * Math.sin(φ2) -
-    Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+    Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
   const θ = Math.atan2(y, x);
-  return (θ * 180) / Math.PI;
+  // Convert math angle (E=0°, CCW) to geographic bearing (N=0°, CW) for CSS rotate()
+  return (90 - (θ * 180) / Math.PI + 360) % 360;
 }
 
 function getEffectiveRouteDirection(
   route: RouteData,
 ): "to_dicis" | "from_dicis" {
-  const namedStops = route.points.filter((p) => p.point_role !== "waypoint");
-  const firstStopName = namedStops[0]?.stop_name?.toLowerCase() ?? "";
-  const lastStopName =
-    namedStops[namedStops.length - 1]?.stop_name?.toLowerCase() ?? "";
-
-  const firstHasDicis = firstStopName.includes("dicis");
-  const lastHasDicis = lastStopName.includes("dicis");
-
-  if (firstHasDicis && !lastHasDicis) return "from_dicis";
-  if (!firstHasDicis && lastHasDicis) return "to_dicis";
-
   return route.direction;
 }
 
+function computePositionAndHeading(
+  departureTimeMins: number,
+  namedPoints: RouteData["points"],
+  roadPath: [number, number][],
+  stopRoadIndices: number[],
+): { position: [number, number]; heading: number } {
+  const currentMins = getMexicoCurrentMins();
+  const elapsedMins = currentMins - departureTimeMins;
+
+  let segIdx = 0;
+  for (let k = 0; k < namedPoints.length - 1; k++) {
+    if (
+      namedPoints[k].cumulative_minutes <= elapsedMins &&
+      elapsedMins <= namedPoints[k + 1].cumulative_minutes
+    ) {
+      segIdx = k;
+      break;
+    }
+  }
+
+  const startStop = namedPoints[segIdx];
+  const endStop = namedPoints[Math.min(segIdx + 1, namedPoints.length - 1)];
+  const segTotal = endStop.cumulative_minutes - startStop.cumulative_minutes;
+  const f =
+    segTotal > 0 ? (elapsedMins - startStop.cumulative_minutes) / segTotal : 0;
+
+  let position: [number, number];
+  let heading = 0;
+
+  if (roadPath.length > 0 && stopRoadIndices.length === namedPoints.length) {
+    const segStart = stopRoadIndices[segIdx];
+    const segEnd =
+      stopRoadIndices[Math.min(segIdx + 1, stopRoadIndices.length - 1)];
+
+    position = pointAlongPathSegment(roadPath, segStart, segEnd, f);
+
+    // Distance-based look-ahead (~40m) for stable bearing.
+    // Walk forward from current road index accumulating distance until threshold
+    // or segment boundary, whichever comes first.
+    const LOOKAHEAD_DEG = 0.00036; // ~40m in degrees (equirectangular approx)
+    const currentIdx = Math.min(
+      segStart + Math.round(f * (segEnd - segStart)),
+      segEnd,
+    );
+    let aheadPoint: [number, number] = position;
+    let accumulated = 0;
+    for (let i = currentIdx; i < segEnd; i++) {
+      accumulated += segDist(roadPath[i], roadPath[i + 1]);
+      if (accumulated >= LOOKAHEAD_DEG) {
+        aheadPoint = roadPath[i + 1];
+        break;
+      }
+      aheadPoint = roadPath[i + 1];
+    }
+    if (position[0] !== aheadPoint[0] || position[1] !== aheadPoint[1]) {
+      heading = bearingDeg(position, aheadPoint);
+    }
+  } else {
+    position = [
+      startStop.latitude + f * (endStop.latitude - startStop.latitude),
+      startStop.longitude + f * (endStop.longitude - startStop.longitude),
+    ];
+    heading = bearingDeg(
+      [startStop.latitude, startStop.longitude],
+      [endStop.latitude, endStop.longitude],
+    );
+  }
+
+  return { position, heading };
+}
+
 function SmoothBusMarker({
-  position,
-  heading,
+  departureTimeMins,
+  namedPoints,
+  roadPath,
+  stopRoadIndices,
   icon,
   children,
 }: {
-  position: [number, number];
-  heading: number;
+  departureTimeMins: number;
+  namedPoints: RouteData["points"];
+  roadPath: [number, number][];
+  stopRoadIndices: number[];
   icon: L.DivIcon;
   children: React.ReactNode;
 }) {
   const markerRef = useRef<L.Marker>(null);
+  const rafRef = useRef<number>(0);
+  const smoothHeadingRef = useRef<number | null>(null);
+
+  const initialResult = computePositionAndHeading(
+    departureTimeMins,
+    namedPoints,
+    roadPath,
+    stopRoadIndices,
+  );
 
   useEffect(() => {
-    const marker = markerRef.current;
-    if (!marker) return;
-    marker.setLatLng(position);
+    function frame() {
+      const marker = markerRef.current;
+      if (!marker) {
+        rafRef.current = requestAnimationFrame(frame);
+        return;
+      }
 
-    // Update heading via DOM to avoid recreating the full icon each tick
-    const el = marker.getElement();
-    if (el) {
-      const headingEl = el.querySelector<HTMLElement>(".bus-heading");
-      if (headingEl) {
-        headingEl.style.transform = `rotate(${heading}deg)`;
+      const { position, heading } = computePositionAndHeading(
+        departureTimeMins,
+        namedPoints,
+        roadPath,
+        stopRoadIndices,
+      );
+
+      marker.setLatLng(position);
+
+      const el = marker.getElement();
+      if (el) {
+        const headingEl = el.querySelector<HTMLElement>(".bus-heading");
+        if (headingEl) {
+          // Low-pass filter: shortest-arc lerp toward target heading
+          const prev = smoothHeadingRef.current ?? heading;
+          let diff = heading - prev;
+          // Wrap diff to [-180, 180] for shortest-arc
+          if (diff > 180) diff -= 360;
+          if (diff < -180) diff += 360;
+          const blended = prev + diff * 0.15;
+          smoothHeadingRef.current = blended;
+          headingEl.style.transform = `rotate(${blended}deg)`;
+        }
+      }
+
+      rafRef.current = requestAnimationFrame(frame);
+    }
+
+    function handleVisibility() {
+      if (document.hidden) {
+        cancelAnimationFrame(rafRef.current);
+      } else {
+        rafRef.current = requestAnimationFrame(frame);
       }
     }
-  }, [position, heading]);
+
+    rafRef.current = requestAnimationFrame(frame);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [departureTimeMins, namedPoints, roadPath, stopRoadIndices]);
 
   return (
     <Marker
       ref={markerRef}
-      position={position}
+      position={initialResult.position}
       icon={icon}
       zIndexOffset={3000}
     >
@@ -193,23 +329,11 @@ function SmoothBusMarker({
 
 export default function BusMarkerLayer({ route }: { route: RouteData }) {
   const [, setTick] = useState(0);
-  const [roadPath, setRoadPath] = useState<[number, number][]>([]);
+  const roadPath = useRouteRoadPath(route);
 
+  // Low-frequency tick: re-evaluate which buses are active + update tooltip text
   useEffect(() => {
-    const cacheKey = `route_mapbox_${route.id}`;
-    const cached =
-      typeof window !== "undefined" ? localStorage.getItem(cacheKey) : null;
-    if (cached) {
-      try {
-        setRoadPath(JSON.parse(cached));
-      } catch {
-        // fall back to straight-line interpolation
-      }
-    }
-  }, [route.id]);
-
-  useEffect(() => {
-    const interval = setInterval(() => setTick((t) => t + 1), TICK_MS);
+    const interval = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -223,68 +347,30 @@ export default function BusMarkerLayer({ route }: { route: RouteData }) {
       ? "DICIS → Salamanca"
       : "Salamanca → DICIS";
 
-  const stopRoadIndices: number[] =
-    roadPath.length > 0
-      ? namedPoints.map((p) =>
-          nearestPathIndex(roadPath, p.latitude, p.longitude),
-        )
-      : [];
+  const stopRoadIndices = useMemo(
+    () =>
+      roadPath.length > 0
+        ? namedPoints.map((p) =>
+            nearestPathIndex(roadPath, p.latitude, p.longitude),
+          )
+        : [],
+    [roadPath, namedPoints],
+  );
 
   return (
     <>
       {buses.map((bus, i) => {
-        let position: [number, number] = [bus.lat, bus.lng];
-        let heading = 0;
-
-        let segIdx = 0;
-        for (let k = 0; k < namedPoints.length - 1; k++) {
-          if (
-            namedPoints[k].cumulative_minutes <= bus.elapsedMins &&
-            bus.elapsedMins <= namedPoints[k + 1].cumulative_minutes
-          ) {
-            segIdx = k;
-            break;
-          }
-        }
-        const startStop = namedPoints[segIdx];
-        const endStop = namedPoints[segIdx + 1];
-        const segTotal =
-          endStop.cumulative_minutes - startStop.cumulative_minutes;
-        const f =
-          segTotal > 0
-            ? (bus.elapsedMins - startStop.cumulative_minutes) / segTotal
-            : 0;
-
-        if (
-          roadPath.length > 0 &&
-          stopRoadIndices.length === namedPoints.length
-        ) {
-          position = pointAlongPathSegment(
-            roadPath,
-            stopRoadIndices[segIdx],
-            stopRoadIndices[segIdx + 1],
-            f,
-          );
-          const lookahead = pointAlongPathSegment(
-            roadPath,
-            stopRoadIndices[segIdx],
-            stopRoadIndices[segIdx + 1],
-            Math.min(f + 0.05, 1),
-          );
-          heading = bearingDeg(position, lookahead);
-        } else {
-          heading = bearingDeg(
-            [startStop.latitude, startStop.longitude],
-            [endStop.latitude, endStop.longitude],
-          );
-        }
+        const [h, m] = bus.departureTime.split(":").map(Number);
+        const departureTimeMins = h * 60 + m;
 
         return (
           <SmoothBusMarker
             key={`bus-${route.id}-${bus.departureTime}`}
-            position={position}
-            heading={heading}
-            icon={getBusIcon(effectiveDirection, i, heading)}
+            departureTimeMins={departureTimeMins}
+            namedPoints={namedPoints}
+            roadPath={roadPath}
+            stopRoadIndices={stopRoadIndices}
+            icon={getBusIcon(effectiveDirection, i, 0)}
           >
             <Tooltip
               direction="top"

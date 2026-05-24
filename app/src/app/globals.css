@@ -93,6 +93,15 @@
   html {
     @apply font-sans;
   }
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 9999px #222224 inset !important;
+    -webkit-text-fill-color: #f4f4f5 !important;
+    caret-color: #f4f4f5;
+    transition: background-color 9999s ease-in-out 0s;
+  }
 }
 
 /* Minimalist elegant scrollbar matching dark/light themes */
@@ -144,12 +153,15 @@
   background-color: rgba(255, 255, 255, 0.9);
   border: 1.5px solid rgba(255, 255, 255, 0.4);
   border-radius: 50%;
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.6),
+    0 2px 6px rgba(0, 0, 0, 0.5);
 }
 
 /* Active route line glow */
 .route-line-glow {
-  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5))
+    drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
 }
 
 @keyframes popIn {

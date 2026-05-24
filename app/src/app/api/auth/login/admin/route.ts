@@ -1,10 +1,11 @@
+import getIPFromNextRequest from "@lib/server/utils/http";
 import { createClient } from "@lib/supabase/server";
 import { type NextRequest, NextResponse } from "next/server";
 import z from "zod";
 
 const bodySchema = z.object({
   email: z.string().email(),
-  password: z.string(),
+  password: z.string().min(6),
 });
 
 export async function POST(request: NextRequest) {
@@ -23,7 +24,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const clientIp = getIPFromNextRequest(request);
+    if (!clientIp) {
+      return NextResponse.json(
+        {
+          error: "Unable to determine client IP address",
+          code: "IP_ADDRESS_UNDETERMINED",
+        },
+        { status: 400 },
+      );
+    }
+
     const supabase = await createClient();
+    const { data: rateLimitAllowed, error: rateLimitError } =
+      await supabase.rpc("check_and_increment_login_limit", {
+        client_ip: clientIp,
+      });
+
+    if (rateLimitError) {
+      console.error("Admin login rate limit error:", rateLimitError);
+      return NextResponse.json(
+        {
+          error: "Unable to validate login rate limit",
+          code: "RATE_LIMIT_CHECK_FAILED",
+        },
+        { status: 500 },
+      );
+    }
+
+    if (!rateLimitAllowed) {
+      return NextResponse.json(
+        {
+          error: "Too many login attempts. Try again later.",
+          code: "RATE_LIMITED",
+        },
+        { status: 429 },
+      );
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email: parseResult.data.email,
       password: parseResult.data.password,

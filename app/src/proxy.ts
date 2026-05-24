@@ -2,7 +2,14 @@ import { createClient } from "@lib/supabase/server";
 import { cookies } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 
-const allowedPaths = ["/login", "/unauthorized", "/api/auth/login"];
+const allowedPaths = [
+  "/login",
+  "/admin/login",
+  "/unauthorized",
+  "/api/auth/login",
+];
+
+const adminPaths = ["/admin"];
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = new URL(request.url);
@@ -15,10 +22,6 @@ export default async function proxy(request: NextRequest) {
 
   if (error) {
     if (error.code === "user_not_found") {
-      console.warn(
-        "No active session found for user - treating as unauthenticated",
-      );
-
       await supabase.auth.signOut();
 
       const cookieStore = await cookies();
@@ -30,19 +33,12 @@ export default async function proxy(request: NextRequest) {
     }
   }
 
-  if (user) {
-    // Validate visitorId cookie with Supabase session
+  if (user?.is_anonymous) {
+    // Validate visitorId cookie against session metadata to detect session swaps
     const visitorIdCookie = request.cookies.get("visitorId")?.value;
-
     const sessionVisitorId = user.user_metadata?.visitorId;
 
     if (visitorIdCookie !== sessionVisitorId) {
-      console.warn(
-        "Visitor ID mismatch: cookie vs session - possible tampering or session issue",
-        { visitorIdCookie, sessionVisitorId },
-      );
-
-      // Invalidate session and clear cookie
       await supabase.auth.signOut();
 
       const cookieStore = await cookies();
@@ -56,6 +52,10 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
+  if (user && !user.is_anonymous && pathname === "/admin/login") {
+    return NextResponse.redirect(new URL("/admin", request.url));
+  }
+
   // Allow unauthenticated access to certain paths
   if (allowedPaths.some((path) => pathname.startsWith(path))) {
     return NextResponse.next();
@@ -65,7 +65,24 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/unauthorized", request.url));
   }
 
-  console.debug("Authenticated user - allowing access to:", pathname);
+  // Enforce admin role at middleware level — client-side guard alone is insufficient.
+  // Any authenticated non-admin hitting /admin/* gets bounced to unauthorized.
+  const isAdminRoute =
+    adminPaths.some((p) => pathname.startsWith(p)) &&
+    pathname !== "/admin/login";
+
+  if (isAdminRoute) {
+    const { data: publicUser } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (publicUser?.role !== "admin") {
+      return NextResponse.redirect(new URL("/unauthorized", request.url));
+    }
+  }
+
   return NextResponse.next();
 }
 

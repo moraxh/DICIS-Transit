@@ -6,8 +6,9 @@ import { cookies } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 import z from "zod";
 
+// ThumbmarkJS produces hex strings of 32-64 chars; reject trivially fabricated IDs
 const bodySchema = z.object({
-  visitorId: z.string(),
+  visitorId: z.string().min(8).max(128).regex(/^[a-zA-Z0-9_\-]+$/),
 });
 
 export async function POST(request: NextRequest) {
@@ -43,6 +44,18 @@ export async function POST(request: NextRequest) {
     }
 
     if (REQUIRE_CAMPUS_WIFI) {
+      if (!ipaddr.isValid(ip)) {
+        return NextResponse.json(
+          {
+            error: "Invalid client IP address",
+            code: "INVALID_IP_ADDRESS",
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
       const addr = ipaddr.parse(ip);
       const allowed = addr.match(ipaddr.parseCIDR(CAMPUS_ALLOWED_CIDR));
 
@@ -58,10 +71,6 @@ export async function POST(request: NextRequest) {
         );
       }
     }
-
-    // Extract TLS Handshake (JA4) for network fingerprinting
-    // We assume the proxy/WAF passes `x-tls-ja4` header
-    const ja4 = request.headers.get("x-tls-ja4") || "unknown";
 
     // Generate anonymous session for student
     const supabase = await createClient();
@@ -101,32 +110,6 @@ export async function POST(request: NextRequest) {
       // Failsafe, but keep going with the auth data
     }
 
-    // Create or update device session (Device Binding)
-    const { data: sessionData, error: sessionError } = await supabase
-      .from("sessions")
-      .upsert(
-        {
-          user_id: authData.user.id,
-          device_fingerprint: parseResult.data.visitorId,
-          last_ip: ip,
-          is_active: true,
-        },
-        { onConflict: "device_fingerprint" },
-      )
-      .select("id")
-      .single();
-
-    if (sessionError || !sessionData) {
-      console.error("Sessions table error:", sessionError);
-      return NextResponse.json(
-        {
-          error: "Could not bind device session securely",
-          code: "DEVICE_BINDING_FAILED",
-        },
-        { status: 500 },
-      );
-    }
-
     const cookieStore = await cookies();
 
     // Set visitorId cookie for initial validation and legacy proxy needs
@@ -134,15 +117,6 @@ export async function POST(request: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-      path: "/",
-    });
-
-    // Set high-security Device Bound Session Token (HttpOnly, Strict)
-    cookieStore.set("device_session_token", sessionData.id, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
       maxAge: 60 * 60 * 24 * 30, // 30 days
       path: "/",
     });

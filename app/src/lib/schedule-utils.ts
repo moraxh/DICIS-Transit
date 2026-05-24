@@ -1,5 +1,37 @@
 import type { RouteData, RouteSchedule } from "@providers/map-provider";
 
+const MEXICO_TZ = "America/Mexico_City";
+
+function getMexicoMinutes(): number {
+  const now = new Date();
+  const mxStr = now.toLocaleString("en-US", {
+    timeZone: MEXICO_TZ,
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const [h, m] = mxStr.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function getMexicoTimeComponents(): {
+  hours: number;
+  minutes: number;
+  seconds: number;
+  milliseconds: number;
+} {
+  const now = new Date();
+  const mxStr = now.toLocaleString("en-US", {
+    timeZone: MEXICO_TZ,
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const [h, m, s] = mxStr.split(":").map(Number);
+  return { hours: h, minutes: m, seconds: s, milliseconds: now.getMilliseconds() };
+}
+
 export function haversineMeters(
   lat1: number,
   lng1: number,
@@ -12,23 +44,23 @@ export function haversineMeters(
   const Δφ = ((lat2 - lat1) * Math.PI) / 180;
   const Δλ = ((lng2 - lng1) * Math.PI) / 180;
   const a =
-    Math.sin(Δφ / 2) ** 2 +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+    Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 export function formatTime(time24: string): string {
+  if (!time24 || !time24.includes(":")) return "--:--";
   const [hRaw, m] = time24.split(":");
   const h = Number(hRaw);
+  if (isNaN(h) || !m) return "--:--";
   const ampm = h >= 12 ? "p.m." : "a.m.";
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${h12}:${m} ${ampm}`;
 }
 
 export function getMinutesUntil(departureTime: string): number {
-  const now = new Date();
   const [h, m] = departureTime.split(":").map(Number);
-  return h * 60 + m - (now.getHours() * 60 + now.getMinutes());
+  return h * 60 + m - getMexicoMinutes();
 }
 
 export function formatMinutesRelative(minutes: number): string {
@@ -45,8 +77,7 @@ export function isSchedulePassed(departureTime: string): boolean {
 export function getNextScheduleIndex(
   schedules: Pick<RouteSchedule, "departure_time">[],
 ): number {
-  const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const currentMinutes = getMexicoMinutes();
   for (let i = 0; i < schedules.length; i++) {
     const [h, m] = schedules[i].departure_time.split(":").map(Number);
     if (currentMinutes <= h * 60 + m) return i;
@@ -61,9 +92,7 @@ export function getTodayPgDay(): number {
 
 export function getTodaysSchedules(route: RouteData): RouteSchedule[] {
   const today = getTodayPgDay();
-  return (route.schedules ?? []).filter(
-    (s) => s.days_active && s.days_active.includes(today),
-  );
+  return (route.schedules ?? []).filter((s) => s.days_active?.includes(today));
 }
 
 export function getNextArrivalText(
@@ -74,8 +103,7 @@ export function getNextArrivalText(
   const todaysSchedules = getTodaysSchedules(route);
   if (todaysSchedules.length === 0) return "Sin servicio hoy";
 
-  const now = new Date();
-  const currentMins = now.getHours() * 60 + now.getMinutes();
+  const currentMins = getMexicoMinutes();
 
   const sorted = [...todaysSchedules].sort((a, b) =>
     a.departure_time.localeCompare(b.departure_time),
@@ -84,6 +112,7 @@ export function getNextArrivalText(
   for (const s of sorted) {
     const [h, m] = s.departure_time.split(":").map(Number);
     const arrivalMins = h * 60 + m + cumulativeMinutes;
+    if (arrivalMins >= 1440) continue;
     if (arrivalMins >= currentMins) {
       const hh = Math.floor(arrivalMins / 60) % 24;
       const mm = (arrivalMins % 60).toString().padStart(2, "0");
@@ -107,9 +136,8 @@ export function getActiveBuses(route: RouteData): ActiveBus[] {
   const todaysSchedules = getTodaysSchedules(route);
   if (todaysSchedules.length === 0) return [];
 
-  const now = new Date();
-  const currentMins =
-    now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+  const { hours, minutes, seconds } = getMexicoTimeComponents();
+  const currentMins = hours * 60 + minutes + seconds / 60;
 
   const namedPoints = route.points.filter((p) => p.point_role !== "waypoint");
   if (namedPoints.length < 2) return [];
@@ -173,13 +201,12 @@ export function getUpcomingDepartures(
   limit = 5,
 ): UpcomingDeparture[] {
   const today = getTodayPgDay();
-  const now = new Date();
-  const currentMins = now.getHours() * 60 + now.getMinutes();
+  const currentMins = getMexicoMinutes();
   const results: UpcomingDeparture[] = [];
 
   for (const route of routes) {
-    const todaySchedules = (route.schedules ?? []).filter(
-      (s) => s.days_active && s.days_active.includes(today),
+    const todaySchedules = (route.schedules ?? []).filter((s) =>
+      s.days_active?.includes(today),
     );
     for (const s of todaySchedules) {
       const [h, m] = s.departure_time.split(":").map(Number);
@@ -196,7 +223,9 @@ export function getUpcomingDepartures(
     }
   }
 
-  return results.sort((a, b) => a.minutesUntil - b.minutesUntil).slice(0, limit);
+  return results
+    .sort((a, b) => a.minutesUntil - b.minutesUntil)
+    .slice(0, limit);
 }
 
 export interface NearestStopArrival {
@@ -239,8 +268,7 @@ export function getNearestStopWithNextArrival(
   if (!best) return null;
 
   const todays = getTodaysSchedules(best.route);
-  const now = new Date();
-  const currentMins = now.getHours() * 60 + now.getMinutes();
+  const currentMins = getMexicoMinutes();
   const sorted = [...todays].sort((a, b) =>
     a.departure_time.localeCompare(b.departure_time),
   );

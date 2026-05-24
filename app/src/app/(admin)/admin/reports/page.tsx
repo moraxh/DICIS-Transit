@@ -1,9 +1,19 @@
 "use client";
 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@components/ui/table";
 import { supabase } from "@lib/supabase/client";
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+
+type ReportStatus = "pending" | "verified" | "false" | "spam";
 
 interface Report {
   id: string;
@@ -13,6 +23,7 @@ interface Report {
   route_id: string | null;
   stop_id: string | null;
   user_id: string | null;
+  status: ReportStatus;
 }
 
 interface RouteOption {
@@ -27,19 +38,35 @@ const typeLabels: Record<string, string> = {
   delay: "Se tardó",
 };
 
+const statusLabels: Record<ReportStatus, string> = {
+  pending: "Pendiente",
+  verified: "Verificado",
+  false: "Falso",
+  spam: "Spam",
+};
+
+const statusColors: Record<ReportStatus, string> = {
+  pending: "text-zinc-400",
+  verified: "text-emerald-400",
+  false: "text-red-400",
+  spam: "text-orange-400",
+};
+
 export default function AdminReportsPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [routes, setRoutes] = useState<RouteOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [filterRoute, setFilterRoute] = useState("");
   const [filterType, setFilterType] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
 
-  async function load() {
+  const load = useCallback(async () => {
     const [reportsRes, routesRes] = await Promise.all([
       supabase
         .from("reports")
-        .select("*")
+        .select("id,report_type,delay_mins,created_at,route_id,stop_id,user_id,status")
         .order("created_at", { ascending: false })
         .limit(100),
       supabase.from("routes").select("id, name"),
@@ -48,32 +75,36 @@ export default function AdminReportsPage() {
     if (reportsRes.data) setReports(reportsRes.data);
     if (routesRes.data) setRoutes(routesRes.data);
     setIsLoading(false);
-  }
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
+
+  async function updateStatus(reportId: string, status: ReportStatus) {
+    setUpdatingStatusId(reportId);
+    const { error } = await supabase
+      .from("reports")
+      .update({ status })
+      .eq("id", reportId);
+    setUpdatingStatusId(null);
+    if (error) {
+      toast.error("Error al actualizar estado");
+      return;
+    }
+    setReports((prev) =>
+      prev.map((r) => (r.id === reportId ? { ...r, status } : r)),
+    );
+    toast.success(`Estado → ${statusLabels[status]}`);
+  }
 
   async function adjustCredibility(userId: string, delta: number) {
     setUpdatingId(userId);
 
-    const { data: userData } = await supabase
-      .from("users")
-      .select("credibility_score")
-      .eq("id", userId)
-      .single();
-
-    if (!userData) {
-      toast.error("Usuario no encontrado");
-      setUpdatingId(null);
-      return;
-    }
-
-    const newScore = Math.max(0, Math.min(100, userData.credibility_score + delta));
-    const { error } = await supabase
-      .from("users")
-      .update({ credibility_score: newScore })
-      .eq("id", userId);
+    const { data: newScore, error } = await supabase.rpc("adjust_credibility", {
+      target_user_id: userId,
+      delta,
+    });
 
     setUpdatingId(null);
 
@@ -93,6 +124,7 @@ export default function AdminReportsPage() {
   const filtered = reports.filter((r) => {
     if (filterRoute && r.route_id !== filterRoute) return false;
     if (filterType && r.report_type !== filterType) return false;
+    if (filterStatus && r.status !== filterStatus) return false;
     return true;
   });
 
@@ -131,6 +163,19 @@ export default function AdminReportsPage() {
             </option>
           ))}
         </select>
+
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-zinc-600 transition-colors"
+        >
+          <option value="">Todos los estados</option>
+          {Object.entries(statusLabels).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {isLoading ? (
@@ -142,63 +187,75 @@ export default function AdminReportsPage() {
       ) : filtered.length === 0 ? (
         <p className="text-sm text-zinc-500">Sin reportes</p>
       ) : (
-        <div className="rounded-xl border border-zinc-800 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-800 text-left">
-                <th className="px-4 py-3 text-xs font-medium text-zinc-500">
-                  Tipo
-                </th>
-                <th className="px-4 py-3 text-xs font-medium text-zinc-500">
-                  Ruta
-                </th>
-                <th className="px-4 py-3 text-xs font-medium text-zinc-500">
-                  Dispositivo
-                </th>
-                <th className="px-4 py-3 text-xs font-medium text-zinc-500">
-                  Fecha
-                </th>
-                <th className="px-4 py-3 text-xs font-medium text-zinc-500">
-                  Credibilidad
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((report, i) => (
-                <tr
+        <div className="rounded-xl border border-zinc-800 overflow-hidden bg-zinc-900/30">
+          <Table>
+            <TableHeader className="bg-zinc-900/50">
+              <TableRow className="border-zinc-800 hover:bg-transparent">
+                <TableHead className="text-zinc-400">Tipo</TableHead>
+                <TableHead className="text-zinc-400">Ruta</TableHead>
+                <TableHead className="text-zinc-400">Dispositivo</TableHead>
+                <TableHead className="text-zinc-400">Fecha</TableHead>
+                <TableHead className="text-zinc-400">Estado</TableHead>
+                <TableHead className="text-zinc-400">Credibilidad</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((report) => (
+                <TableRow
                   key={report.id}
-                  className={`${i < filtered.length - 1 ? "border-b border-zinc-800/60" : ""} hover:bg-white/2`}
+                  className="border-zinc-800/60 hover:bg-white/2"
                 >
-                  <td className="px-4 py-3 text-zinc-300">
+                  <TableCell className="text-zinc-300 py-3">
                     {typeLabels[report.report_type] ?? report.report_type}
                     {report.report_type === "delay" && report.delay_mins && (
                       <span className="text-zinc-600 text-xs ml-1">
                         ({report.delay_mins} min)
                       </span>
                     )}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-400">
+                  </TableCell>
+                  <TableCell className="text-zinc-400 py-3">
                     {routeName(report.route_id)}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-600 font-mono text-xs">
+                  </TableCell>
+                  <TableCell className="text-zinc-600 font-mono text-xs py-3">
                     {report.user_id
                       ? `···${report.user_id.slice(-6).toUpperCase()}`
                       : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-500 text-xs">
+                  </TableCell>
+                  <TableCell className="text-zinc-500 text-xs py-3">
                     {new Date(report.created_at).toLocaleString("es-MX", {
                       month: "short",
                       day: "numeric",
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
-                  </td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell className="py-3">
+                    {updatingStatusId === report.id ? (
+                      <Loader2 size={13} className="animate-spin text-zinc-500" />
+                    ) : (
+                      <select
+                        value={report.status}
+                        onChange={(e) =>
+                          updateStatus(report.id, e.target.value as ReportStatus)
+                        }
+                        className={`bg-transparent text-xs font-medium outline-none cursor-pointer ${statusColors[report.status]}`}
+                      >
+                        {Object.entries(statusLabels).map(([value, label]) => (
+                          <option key={value} value={value} className="bg-zinc-900 text-white">
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </TableCell>
+                  <TableCell className="py-3">
                     {report.user_id ? (
                       <div className="flex items-center gap-1">
                         <button
+                          type="button"
                           onClick={() =>
-                            adjustCredibility(report.user_id!, -10)
+                            report.user_id &&
+                            adjustCredibility(report.user_id, -10)
                           }
                           disabled={updatingId === report.user_id}
                           title="Reducir credibilidad -10"
@@ -211,8 +268,10 @@ export default function AdminReportsPage() {
                           )}
                         </button>
                         <button
+                          type="button"
                           onClick={() =>
-                            adjustCredibility(report.user_id!, 10)
+                            report.user_id &&
+                            adjustCredibility(report.user_id, 10)
                           }
                           disabled={updatingId === report.user_id}
                           title="Restaurar credibilidad +10"
@@ -228,11 +287,11 @@ export default function AdminReportsPage() {
                     ) : (
                       <span className="text-zinc-700 text-xs">—</span>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>

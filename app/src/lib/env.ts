@@ -35,7 +35,7 @@ export const envSchema = z.object({
   NEXT_PUBLIC_MAPBOX_TOKEN: z.string().min(1),
 
   // Backend/Server side only
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
 
   // Custom logic variables
   REQUIRE_CAMPUS_WIFI: z.preprocess(

@@ -1,7 +1,7 @@
 "use client";
 
-import { useMapData } from "@providers/map-provider";
 import { supabase } from "@lib/supabase/client";
+import { useMapData } from "@providers/map-provider";
 import {
   AlertCircle,
   AlertTriangle,
@@ -114,7 +114,10 @@ export default function AlertsTab() {
     );
   }
 
-  const isEmpty = notices.length === 0 && modifications.length === 0 && reportCounts.length === 0;
+  const isEmpty =
+    notices.length === 0 &&
+    modifications.length === 0 &&
+    reportCounts.length === 0;
 
   return (
     <div className="p-5 flex flex-col gap-5">
@@ -127,8 +130,12 @@ export default function AlertsTab() {
           <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
             <Radio className="text-emerald-400" size={22} />
           </div>
-          <p className="text-sm font-medium text-white/80">Sin avisos activos</p>
-          <p className="text-xs text-zinc-500">El servicio opera con normalidad</p>
+          <p className="text-sm font-medium text-white/80">
+            Sin avisos activos
+          </p>
+          <p className="text-xs text-zinc-500">
+            El servicio opera con normalidad
+          </p>
         </motion.div>
       )}
 

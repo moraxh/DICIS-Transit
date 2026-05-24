@@ -1,7 +1,7 @@
 "use client";
 
-import { AppSidebar } from "@components/shared/sidebar/app-sidebar";
 import ReportSheet from "@components/shared/report-sheet";
+import { AppSidebar } from "@components/shared/sidebar/app-sidebar";
 import { SidebarProvider, SidebarTrigger } from "@components/ui/sidebar";
 import { useIsMobile } from "@hooks/use-mobile";
 import { useAuth } from "@providers/auth-provider";
@@ -46,6 +46,7 @@ function HomeContent() {
 
         {userType === "student" && (
           <button
+            type="button"
             onClick={() => setReportOpen(true)}
             className="fixed bottom-6 right-6 z-20 w-12 h-12 rounded-full bg-white text-black shadow-2xl flex items-center justify-center hover:bg-zinc-100 transition-colors md:bottom-8 md:right-8"
             aria-label="Enviar reporte"

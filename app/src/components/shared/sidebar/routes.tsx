@@ -1,5 +1,6 @@
 "use client";
 
+import { getNextArrivalText } from "@lib/schedule-utils";
 import { useMapData } from "@providers/map-provider";
 import clsx from "clsx";
 import {
@@ -94,6 +95,7 @@ export default function RoutesTab() {
         <div className="bg-zinc-200/50 dark:bg-zinc-900/50 p-1 rounded-[16px] flex relative">
           {(["L-V", "Sábado"] as ScheduleType[]).map((tab) => (
             <button
+              type="button"
               key={tab}
               onClick={() => setSchedule(tab)}
               className={clsx(
@@ -120,6 +122,7 @@ export default function RoutesTab() {
         <div className="bg-zinc-200/50 dark:bg-zinc-900/50 p-1 rounded-[16px] flex relative">
           {(["Ida", "Regreso"] as DirectionType[]).map((tab) => (
             <button
+              type="button"
               key={tab}
               onClick={() => setDirection(tab)}
               className={clsx(
@@ -269,65 +272,11 @@ export default function RoutesTab() {
                                 const isStopActive =
                                   activeStopId === pt.stop_id;
 
-                                // Calculate next predicted arrival based on schedule
-                                const currentJsDay = new Date().getDay();
-                                const currentPgDay =
-                                  currentJsDay === 0 ? 7 : currentJsDay;
-                                const now = new Date();
-                                const currentMins =
-                                  now.getHours() * 60 + now.getMinutes();
-
-                                let nextArrivalText = "Sin servicio hoy";
-
-                                // Find valid schedules for today
-                                const todaysSchedules =
-                                  route.schedules?.filter(
-                                    (s) =>
-                                      s.days_active &&
-                                      s.days_active.includes(currentPgDay),
-                                  ) || [];
-
-                                if (todaysSchedules.length > 0) {
-                                  // Sort schedules by time
-                                  const sorted = [...todaysSchedules].sort(
-                                    (a, b) => {
-                                      return a.departure_time.localeCompare(
-                                        b.departure_time,
-                                      );
-                                    },
-                                  );
-
-                                  let nextSchedule = null;
-                                  for (const s of sorted) {
-                                    const [hours, mins] = s.departure_time
-                                      .split(":")
-                                      .map(Number);
-                                    const depMins = hours * 60 + mins;
-                                    const arrivalMins =
-                                      depMins + pt.cumulative_minutes;
-                                    if (arrivalMins >= currentMins) {
-                                      nextSchedule = {
-                                        schedule: s,
-                                        arrivalMins,
-                                      };
-                                      break;
-                                    }
-                                  }
-
-                                  if (!nextSchedule) {
-                                    nextArrivalText = "No hay más por hoy";
-                                  } else {
-                                    const arrivalMins =
-                                      nextSchedule.arrivalMins;
-                                    const h = Math.floor(arrivalMins / 60) % 24;
-                                    const m = (arrivalMins % 60)
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const ampm = h >= 12 ? "p.m." : "a.m.";
-                                    const h12 = h % 12 === 0 ? 12 : h % 12;
-                                    nextArrivalText = `${pt.point_role === "start" ? "Parte a las" : "Siguiente:"} ${h12}:${m} ${ampm}`;
-                                  }
-                                }
+                                const nextArrivalText = getNextArrivalText(
+                                  route,
+                                  pt.cumulative_minutes,
+                                  pt.point_role === "start",
+                                );
 
                                 return (
                                   <motion.li

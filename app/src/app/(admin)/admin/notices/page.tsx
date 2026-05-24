@@ -1,10 +1,12 @@
 "use client";
 
+import { Badge } from "@components/ui/badge";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import { supabase } from "@lib/supabase/client";
+import { useAuth } from "@providers/auth-provider";
 import { Loader2, Plus, Trash2, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface Notice {
@@ -17,10 +19,11 @@ interface Notice {
 }
 
 const priorityColors = {
-  urgent: "text-red-400 bg-red-500/10 border-red-500/20",
-  high: "text-orange-400 bg-orange-500/10 border-orange-500/20",
-  medium: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
-  low: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+  urgent: "text-red-400 bg-red-500/10 hover:bg-red-500/20 border-red-500/20",
+  high: "text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 border-orange-500/20",
+  medium:
+    "text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20 border-yellow-500/20",
+  low: "text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/20",
 };
 
 const priorityLabels = {
@@ -31,6 +34,7 @@ const priorityLabels = {
 };
 
 export default function AdminNoticesPage() {
+  const { userData } = useAuth();
   const [notices, setNotices] = useState<Notice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -42,29 +46,31 @@ export default function AdminNoticesPage() {
     expires_at: "",
   });
 
-  async function load() {
+  const load = useCallback(async () => {
     const { data } = await supabase
       .from("notices")
-      .select("*")
+      .select("id,title,content,priority,created_at,expires_at")
       .order("created_at", { ascending: false });
     if (data) setNotices(data);
     setIsLoading(false);
-  }
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   async function handleCreate() {
-    if (!form.title || !form.content) return;
+    if (!form.title || !form.content || !userData) return;
     setSaving(true);
 
     const payload: Record<string, string> = {
       title: form.title,
       content: form.content,
       priority: form.priority,
+      admin_id: userData.id,
     };
-    if (form.expires_at) payload.expires_at = new Date(form.expires_at).toISOString();
+    if (form.expires_at)
+      payload.expires_at = new Date(form.expires_at).toISOString();
 
     const { error } = await supabase.from("notices").insert(payload);
     setSaving(false);
@@ -98,7 +104,9 @@ export default function AdminNoticesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-white">Avisos</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">Gestión de avisos generales</p>
+          <p className="text-sm text-zinc-500 mt-0.5">
+            Gestión de avisos generales
+          </p>
         </div>
         <Button
           onClick={() => setShowModal(true)}
@@ -133,15 +141,19 @@ export default function AdminNoticesPage() {
                   <span className="text-sm font-semibold text-white">
                     {notice.title}
                   </span>
-                  <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded-full border ${priorityColors[notice.priority]}`}
+                  <Badge
+                    variant="outline"
+                    className={`font-normal ${priorityColors[notice.priority]}`}
                   >
                     {priorityLabels[notice.priority]}
-                  </span>
+                  </Badge>
                   {isExpired(notice) && (
-                    <span className="text-[10px] text-zinc-600 border border-zinc-700 px-1.5 py-0.5 rounded-full">
+                    <Badge
+                      variant="outline"
+                      className="text-zinc-600 border-zinc-700 font-normal"
+                    >
                       Expirado
-                    </span>
+                    </Badge>
                   )}
                 </div>
                 <p className="text-xs text-zinc-400 leading-relaxed">
@@ -149,11 +161,13 @@ export default function AdminNoticesPage() {
                 </p>
                 {notice.expires_at && (
                   <p className="text-[10px] text-zinc-600 mt-1">
-                    Expira: {new Date(notice.expires_at).toLocaleDateString("es-MX")}
+                    Expira:{" "}
+                    {new Date(notice.expires_at).toLocaleDateString("es-MX")}
                   </p>
                 )}
               </div>
               <button
+                type="button"
                 onClick={() => handleDelete(notice.id)}
                 className="text-zinc-600 hover:text-red-400 transition-colors shrink-0 mt-0.5"
               >
@@ -168,8 +182,11 @@ export default function AdminNoticesPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-md flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-white">Nuevo aviso</h2>
+              <h2 className="text-base font-semibold text-white">
+                Nuevo aviso
+              </h2>
               <button
+                type="button"
                 onClick={() => setShowModal(false)}
                 className="text-zinc-500 hover:text-white"
               >
@@ -179,18 +196,29 @@ export default function AdminNoticesPage() {
 
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-zinc-400">Título</label>
+                <label htmlFor="notice-title" className="text-xs text-zinc-400">
+                  Título
+                </label>
                 <Input
+                  id="notice-title"
                   value={form.title}
-                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, title: e.target.value }))
+                  }
                   placeholder="Título del aviso"
                   className="bg-zinc-950 border-zinc-800 text-white"
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-zinc-400">Contenido</label>
+                <label
+                  htmlFor="notice-content"
+                  className="text-xs text-zinc-400"
+                >
+                  Contenido
+                </label>
                 <textarea
+                  id="notice-content"
                   value={form.content}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, content: e.target.value }))
@@ -203,8 +231,14 @@ export default function AdminNoticesPage() {
 
               <div className="flex gap-3">
                 <div className="flex flex-col gap-1.5 flex-1">
-                  <label className="text-xs text-zinc-400">Prioridad</label>
+                  <label
+                    htmlFor="notice-priority"
+                    className="text-xs text-zinc-400"
+                  >
+                    Prioridad
+                  </label>
                   <select
+                    id="notice-priority"
                     value={form.priority}
                     onChange={(e) =>
                       setForm((f) => ({
@@ -222,8 +256,14 @@ export default function AdminNoticesPage() {
                 </div>
 
                 <div className="flex flex-col gap-1.5 flex-1">
-                  <label className="text-xs text-zinc-400">Expira (opcional)</label>
+                  <label
+                    htmlFor="notice-expires-at"
+                    className="text-xs text-zinc-400"
+                  >
+                    Expira (opcional)
+                  </label>
                   <Input
+                    id="notice-expires-at"
                     type="date"
                     value={form.expires_at}
                     onChange={(e) =>

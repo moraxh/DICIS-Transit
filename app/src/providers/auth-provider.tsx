@@ -3,7 +3,7 @@
 import { supabase } from "@lib/supabase/client";
 import { AuthSessionMissingError, type User } from "@supabase/supabase-js";
 import { useThumbmark } from "@thumbmarkjs/react";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -25,39 +25,45 @@ const AuthContext = createContext<AuthProviderType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { thumbmark, isLoading: isThumbmarkLoading } = useThumbmark();
+  const router = useRouter();
   const [visitorId, setVisitorId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userData, setUserData] = useState<User | null>(null);
   const [userType, setUserType] = useState<"student" | "admin" | null>(null);
   const [credibilityScore, setCredibilityScore] = useState<number | null>(null);
 
-  const studentLogin = useCallback(async (visitorId: string) => {
-    let success = false;
-    try {
-      const response = await fetch("/api/auth/login/student", {
-        method: "POST",
-        body: JSON.stringify({ visitorId: visitorId }),
-      });
+  const studentLogin = useCallback(
+    async (visitorId: string) => {
+      let success = false;
+      try {
+        const response = await fetch("/api/auth/login/student", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ visitorId }),
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Student login failed:", errorData);
-        toast.error("No estas autorizado para acceder a esta aplicación");
-        return;
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("Student login failed:", errorData);
+          toast.error("No estas autorizado para acceder a esta aplicación");
+          return;
+        }
+
+        toast.success("Bienvenido estudiante");
+        // Do NOT set userType here — onAuthStateChange SIGNED_IN will call getCurrentUser
+        // which sets userType + credibilityScore + userData atomically (HIGH-4 fix)
+        success = true;
+      } catch (error) {
+        toast.error("Error al iniciar sesión como estudiante");
+        console.error("Error during student login:", error);
       }
 
-      toast.success("Bienvenido estudiante");
-      setUserType("student");
-      success = true;
-    } catch (error) {
-      toast.error("Error al iniciar sesión como estudiante");
-      console.error("Error during student login:", error);
-    }
-
-    if (success) {
-      redirect("/");
-    }
-  }, []);
+      if (success) {
+        router.push("/");
+      }
+    },
+    [router],
+  );
 
   const getCurrentUser = useCallback(
     async (visitorId: string) => {
@@ -69,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (!user && error instanceof AuthSessionMissingError) {
           setUserData(null);
-          studentLogin(visitorId);
+          await studentLogin(visitorId);
           return;
         }
 
@@ -100,15 +106,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
+    let cancelled = false;
+
     if (thumbmark && !isThumbmarkLoading) {
       setVisitorId(thumbmark);
-      getCurrentUser(thumbmark);
+      getCurrentUser(thumbmark).finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    } else if (!isThumbmarkLoading && !thumbmark) {
+      setVisitorId(null);
+      setUserData(null);
+      setUserType(null);
+      setCredibilityScore(null);
       setIsLoading(false);
     }
-  }, [thumbmark, getCurrentUser, isThumbmarkLoading]);
+
+    return () => {
+      cancelled = true;
+    };
+    // getCurrentUser excluded: stable useCallback ref, including it causes extra runs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [thumbmark, isThumbmarkLoading]);
+
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" && thumbmark) {
+        getCurrentUser(thumbmark);
+      } else if (event === "SIGNED_OUT") {
+        setUserData(null);
+        setUserType(null);
+        setCredibilityScore(null);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [thumbmark, getCurrentUser]);
 
   return (
-    <AuthContext.Provider value={{ visitorId, userType, isLoading, userData, credibilityScore }}>
+    <AuthContext.Provider
+      value={{ visitorId, userType, isLoading, userData, credibilityScore }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -1,7 +1,7 @@
 import { createClient } from "@lib/supabase/server";
 import { type NextRequest, NextResponse } from "next/server";
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const supabase = await createClient();
 
@@ -10,16 +10,18 @@ export async function GET(request: NextRequest) {
       error,
     } = await supabase.auth.getUser();
 
-    console.log("User info fetched from Supabase:", { user, error });
-  } catch (error) {
+    if (error || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    return NextResponse.json({ user }, { status: 200 });
+  } catch (_error) {
     return NextResponse.json(
       {
         error: "Failed to fetch user information",
         code: "USER_INFO_FETCH_FAILED",
       },
-      {
-        status: 500,
-      },
+      { status: 500 },
     );
   }
 }

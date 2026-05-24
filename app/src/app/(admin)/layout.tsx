@@ -1,7 +1,14 @@
 "use client";
 
 import { useAuth } from "@providers/auth-provider";
-import { LayoutDashboard, Loader2, Megaphone, Route, TriangleAlert } from "lucide-react";
+import {
+  LayoutDashboard,
+  Loader2,
+  Map as MapIcon,
+  Megaphone,
+  Route,
+  TriangleAlert,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -70,6 +77,15 @@ export default function AdminLayout({
             );
           })}
         </nav>
+        <div className="p-3 border-t border-zinc-800">
+          <Link
+            href="/"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+          >
+            <MapIcon size={15} />
+            Volver al mapa
+          </Link>
+        </div>
       </aside>
       <main className="flex-1 overflow-auto">{children}</main>
     </div>

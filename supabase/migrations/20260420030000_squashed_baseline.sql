@@ -18,15 +18,6 @@ create table if not exists public.users (
   created_at timestamptz not null default now()
 );
 
-create table if not exists public.sessions (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references public.users(id) on delete cascade,
-  device_fingerprint text not null unique,
-  last_ip inet not null,
-  is_active boolean not null default true,
-  last_seen_at timestamptz not null default now()
-);
-
 create table if not exists public.routes (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -199,7 +190,6 @@ alter table public.notices enable row level security;
 alter table public.route_modifications enable row level security;
 alter table public.reports enable row level security;
 alter table public.users enable row level security;
-alter table public.sessions enable row level security;
 alter table public.login_attempts enable row level security;
 
 -- Transport policies
@@ -322,7 +312,7 @@ for delete
 to authenticated
 using (public.is_admin());
 
--- Users and sessions policies
+-- Users policies
 create policy "Users can read own data"
 on public.users
 for select
@@ -345,31 +335,6 @@ for update
 to authenticated
 using (public.is_admin())
 with check (public.is_admin());
-
-create policy "Users can read own sessions"
-on public.sessions
-for select
-to authenticated
-using (user_id = auth.uid() or public.is_admin());
-
-create policy "Users can insert own session"
-on public.sessions
-for insert
-to authenticated
-with check (user_id = auth.uid());
-
-create policy "Users can update own session"
-on public.sessions
-for update
-to authenticated
-using (user_id = auth.uid())
-with check (user_id = auth.uid());
-
-create policy "Admins can delete sessions"
-on public.sessions
-for delete
-to authenticated
-using (public.is_admin());
 
 -- Views
 create or replace view public.public_route_points
@@ -420,7 +385,6 @@ revoke all on table public.notices from public, anon;
 revoke all on table public.route_modifications from public, anon;
 revoke all on table public.reports from public, anon;
 revoke all on table public.users from public, anon;
-revoke all on table public.sessions from public, anon;
 revoke all on table public.login_attempts from public, anon;
 revoke all on table public.public_route_points from public, anon;
 revoke all on table public.recent_report_counts from public, anon;
@@ -433,7 +397,6 @@ grant select, insert, update, delete on table public.notices to authenticated;
 grant select, insert, update, delete on table public.route_modifications to authenticated;
 grant select, insert, update, delete on table public.reports to authenticated;
 grant select, insert, update on table public.users to authenticated;
-grant select, insert, update, delete on table public.sessions to authenticated;
 grant select on table public.public_route_points to authenticated;
 grant select on table public.recent_report_counts to authenticated;
 
