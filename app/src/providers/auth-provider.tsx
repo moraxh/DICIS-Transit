@@ -53,7 +53,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        toast.success("Bienvenido estudiante");
         success = true;
       } catch (error) {
         toast.error("Error al iniciar sesión como estudiante");

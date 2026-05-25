@@ -1,6 +1,6 @@
 "use client";
 
-import { supabase } from "@lib/supabase/client";
+import { REPORT_TYPE_LABEL } from "@lib/constants";
 import { useMapData } from "@providers/map-provider";
 import {
   AlertCircle,
@@ -12,32 +12,6 @@ import {
   Radio,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
-
-const reportTypeLabel: Record<string, string> = {
-  did_not_pass: "No pasó el camión",
-  full_bus: "Venía lleno",
-  early: "Se adelantó",
-  delay: "Se tardó",
-};
-
-interface Notice {
-  id: string;
-  title: string;
-  content: string;
-  priority: "urgent" | "high" | "medium" | "low";
-  created_at: string;
-  expires_at: string | null;
-}
-
-interface RouteModification {
-  id: string;
-  route_id: string;
-  description: string;
-  status: "active" | "resolved";
-  valid_from: string;
-  valid_to: string | null;
-}
 
 const priorityConfig = {
   urgent: {
@@ -66,45 +40,10 @@ const priorityConfig = {
   },
 };
 
-const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
-
 export default function AlertsTab() {
-  const { reportCounts } = useMapData();
-  const [notices, setNotices] = useState<Notice[]>([]);
-  const [modifications, setModifications] = useState<RouteModification[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { reportCounts, notices, modifications, alertsLoading } = useMapData();
 
-  useEffect(() => {
-    async function load() {
-      const [noticesRes, modsRes] = await Promise.all([
-        supabase
-          .from("notices")
-          .select("*")
-          .or("expires_at.is.null,expires_at.gt.now()"),
-        supabase
-          .from("route_modifications")
-          .select("*")
-          .eq("status", "active")
-          .order("created_at", { ascending: false }),
-      ]);
-
-      if (noticesRes.data) {
-        const sorted = [...noticesRes.data].sort(
-          (a, b) =>
-            priorityOrder[a.priority as keyof typeof priorityOrder] -
-            priorityOrder[b.priority as keyof typeof priorityOrder],
-        );
-        setNotices(sorted);
-      }
-
-      if (modsRes.data) setModifications(modsRes.data);
-      setIsLoading(false);
-    }
-
-    load();
-  }, []);
-
-  if (isLoading) {
+  if (alertsLoading) {
     return (
       <div className="p-5 flex flex-col gap-3">
         {[1, 2, 3].map((i) => (
@@ -144,8 +83,8 @@ export default function AlertsTab() {
           <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">
             Avisos Generales
           </h3>
-          <AnimatePresence>
-            <div className="flex flex-col gap-2.5">
+          <div className="flex flex-col gap-2.5">
+            <AnimatePresence mode="popLayout">
               {notices.map((notice, i) => {
                 const cfg = priorityConfig[notice.priority];
                 const Icon = cfg.icon;
@@ -168,7 +107,7 @@ export default function AlertsTab() {
                             {notice.title}
                           </span>
                           <span
-                            className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-black/20 ${cfg.color}`}
+                            className={`text-xs font-medium px-1.5 py-0.5 rounded-full bg-black/20 ${cfg.color}`}
                           >
                             {cfg.label}
                           </span>
@@ -181,8 +120,8 @@ export default function AlertsTab() {
                   </motion.div>
                 );
               })}
-            </div>
-          </AnimatePresence>
+            </AnimatePresence>
+          </div>
         </section>
       )}
 
@@ -210,7 +149,7 @@ export default function AlertsTab() {
                       {mod.description}
                     </p>
                     {mod.valid_to && (
-                      <p className="text-[10px] text-zinc-500 mt-1.5">
+                      <p className="text-xs text-zinc-500 mt-1.5">
                         Válido hasta{" "}
                         {new Date(mod.valid_to).toLocaleDateString("es-MX")}
                       </p>
@@ -242,9 +181,9 @@ export default function AlertsTab() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-sm font-semibold text-white leading-tight">
-                        {reportTypeLabel[rc.report_type] ?? rc.report_type}
+                        {REPORT_TYPE_LABEL[rc.report_type] ?? rc.report_type}
                       </span>
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400">
+                      <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400">
                         {rc.report_count}×
                       </span>
                     </div>

@@ -25,7 +25,7 @@ function HomeContent() {
       <Suspense fallback={null}>
         <AppSidebar />
       </Suspense>
-      <main className="max-w-full w-screen h-screen">
+      <main className="max-w-full w-full min-h-svh">
         <SidebarTrigger
           size="icon-sm"
           className="fixed border-none rounded-lg! m-2 z-10 hidden md:flex"

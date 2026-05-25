@@ -57,7 +57,9 @@ group by r.route_id, r.stop_id, s.name, rt.name, r.report_type;
 
 -- L-4: public_route_points — filter inactive routes at view level
 -- Previously exposed inactive routes; clients filtered in JS which is bypasseable via direct API calls
-create or replace view public.public_route_points
+drop view if exists public.public_route_points;
+
+create view public.public_route_points
 with (security_invoker = true)
 as
 select

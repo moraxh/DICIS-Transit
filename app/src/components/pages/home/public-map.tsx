@@ -1,6 +1,7 @@
 "use client";
 
 import "leaflet/dist/leaflet.css";
+import { DICIS_COORDS } from "@lib/constants";
 import { useMapData } from "@providers/map-provider";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
@@ -22,7 +23,7 @@ function CinematicFlight() {
     const dicisPoint = dicisRoute?.points?.find((p) => p.point_role === "end");
     const targetCenter: [number, number] = dicisPoint
       ? [dicisPoint.latitude, dicisPoint.longitude]
-      : [20.549879054215197, -101.2008414859346];
+      : [DICIS_COORDS.lat, DICIS_COORDS.lng];
 
     const targetZoom = 14;
 
@@ -50,14 +51,11 @@ function CinematicFlight() {
 export default function PublicMap({ className }: { className?: string }) {
   const [mounted, setMounted] = useState(false);
   const [hasFlown, setHasFlown] = useState(false);
-  const [mapKey, setMapKey] = useState(0);
 
-  const { routes, activeRouteId, isLoading } = useMapData();
+  const { routes, activeRouteId, isLoading, error } = useMapData();
 
   useEffect(() => {
     setMounted(true);
-    setMapKey((prev) => prev + 1);
-
     if (sessionStorage.getItem("dicis_map_flown")) {
       setHasFlown(true);
     }
@@ -72,6 +70,15 @@ export default function PublicMap({ className }: { className?: string }) {
     );
   }
 
+  if (error) {
+    return (
+      <div className={`bg-zinc-950 flex-1 relative w-full h-full flex flex-col items-center justify-center gap-3 ${className}`}>
+        <p className="text-sm font-medium text-zinc-300">No se pudo cargar el servicio</p>
+        <p className="text-xs text-zinc-500">{error.message}</p>
+      </div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, filter: "blur(4px)" }}
@@ -80,10 +87,9 @@ export default function PublicMap({ className }: { className?: string }) {
       className={`bg-black flex-1 relative z-0 w-full h-full overflow-hidden ${className}`}
     >
       <MapContainer
-        key={`map-${mapKey}`}
         center={
           hasFlown
-            ? [20.549879054215197, -101.2008414859346]
+            ? [DICIS_COORDS.lat, DICIS_COORDS.lng]
             : [20.8, -101.2008]
         }
         zoom={hasFlown ? 13 : 9}

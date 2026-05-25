@@ -20,7 +20,9 @@ create index if not exists idx_reports_status
   on public.reports(status);
 
 -- Rebuild public_route_points view to include schedule_type
-create or replace view public.public_route_points
+drop view if exists public.public_route_points;
+
+create view public.public_route_points
 with (security_invoker = true)
 as
 select
@@ -44,3 +46,5 @@ select
 from public.route_stops rs
 join public.routes r on r.id = rs.route_id
 join public.stops s on s.id = rs.stop_id;
+
+grant select on table public.public_route_points to authenticated;

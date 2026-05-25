@@ -8,7 +8,6 @@ import {
   SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
-  useSidebar,
 } from "@components/ui/sidebar";
 import { Skeleton } from "@components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@components/ui/tabs";
@@ -51,7 +50,6 @@ export function AppSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { setOpen } = useSidebar();
   const [direction, setDirection] = useState(1);
   const isMobile = useIsMobile();
   const currentTab = searchParams.get("tab");
@@ -61,11 +59,6 @@ export function AppSidebar() {
   const activeTabConfig =
     tabs.find((tab) => tab.value === activeTab) ?? tabs[0];
 
-  useEffect(() => {
-    if (isMobile) {
-      setOpen(true);
-    }
-  }, [isMobile, setOpen]);
 
   const handleTabChange = useCallback(
     (nextTab: string) => {
@@ -166,6 +159,7 @@ export function AppSidebar() {
                 </motion.svg>
               </motion.a>
             </motion.div>
+
           </SidebarMenu>
 
           <motion.div

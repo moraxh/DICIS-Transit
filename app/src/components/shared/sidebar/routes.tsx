@@ -15,9 +15,6 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 
-type ScheduleType = "L-V" | "Sábado";
-type DirectionType = "Ida" | "Regreso";
-
 export default function RoutesTab() {
   const {
     routes,
@@ -26,47 +23,28 @@ export default function RoutesTab() {
     activeStopId,
     setActiveStopId,
     isLoading,
+    scheduleFilter: schedule,
+    setScheduleFilter: setSchedule,
+    directionFilter: direction,
+    setDirectionFilter: setDirection,
   } = useMapData();
   const [mounted, setMounted] = useState(false);
 
-  const [schedule, setSchedule] = useState<ScheduleType>("L-V");
-  const [direction, setDirection] = useState<DirectionType>("Ida");
-
-  useEffect(() => {
-    setMounted(true);
-    const date = new Date();
-    const day = date.getDay();
-    const hour = date.getHours();
-
-    if (day === 6) {
-      setSchedule("Sábado");
-    }
-    if (hour >= 13) {
-      setDirection("Regreso");
-    }
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   const filteredRoutes = useMemo(() => {
     return routes.filter((r) => {
-      const name = r.name.toLowerCase();
       const matchesSchedule =
         schedule === "Sábado"
-          ? name.includes("sab") || name.includes("sáb")
-          : !name.includes("sab") && !name.includes("sáb");
+          ? r.scheduleType === "saturday"
+          : r.scheduleType === "weekday";
 
-      // Match Direction (Ida limits to ENMSS->DICIS, Regreso is DICIS->ENMSS)
-      // Base on DB names: "L-V: ENMSS a DICIS" and "L-V: DICIS a ENMSS"
-      let directionPass = true;
-      if (direction === "Ida") {
-        directionPass = name.includes("a dicis") || name.includes("ida");
-      } else {
-        directionPass =
-          name.includes("dicis a") ||
-          name.includes("regreso") ||
-          name.includes("a salamanca");
-      }
+      const matchesDirection =
+        direction === "Ida"
+          ? r.direction === "to_dicis"
+          : r.direction === "from_dicis";
 
-      return matchesSchedule && directionPass;
+      return matchesSchedule && matchesDirection;
     });
   }, [routes, schedule, direction]);
 
@@ -93,7 +71,7 @@ export default function RoutesTab() {
     <div className="flex flex-col h-full overflow-hidden">
       <div className="px-4 py-3 shrink-0 border-b border-zinc-200 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-950/20 backdrop-blur-sm z-10 space-y-3">
         <div className="bg-zinc-200/50 dark:bg-zinc-900/50 p-1 rounded-[16px] flex relative">
-          {(["L-V", "Sábado"] as ScheduleType[]).map((tab) => (
+          {(["L-V", "Sábado"] as const).map((tab) => (
             <button
               type="button"
               key={tab}
@@ -120,7 +98,7 @@ export default function RoutesTab() {
         </div>
 
         <div className="bg-zinc-200/50 dark:bg-zinc-900/50 p-1 rounded-[16px] flex relative">
-          {(["Ida", "Regreso"] as DirectionType[]).map((tab) => (
+          {(["Ida", "Regreso"] as const).map((tab) => (
             <button
               type="button"
               key={tab}

@@ -9,15 +9,29 @@ function getMexicoTimeComponents(): {
   milliseconds: number;
 } {
   const now = new Date();
-  const mxStr = now.toLocaleString("en-US", {
+  const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone: MEXICO_TZ,
-    hour12: false,
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
+    hour12: false,
   });
-  const [h, m, s] = mxStr.split(":").map(Number);
-  return { hours: h, minutes: m, seconds: s, milliseconds: now.getMilliseconds() };
+  const parts = formatter.formatToParts(now);
+  const get = (type: string) =>
+    parseInt(parts.find((p) => p.type === type)?.value ?? "0", 10);
+  const h = get("hour");
+  const m = get("minute");
+  const s = get("second");
+  if (Number.isNaN(h) || Number.isNaN(m) || Number.isNaN(s)) {
+    console.error("getMexicoTimeComponents: failed to parse time parts", parts);
+    return { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 };
+  }
+  return {
+    hours: h,
+    minutes: m,
+    seconds: s,
+    milliseconds: now.getMilliseconds(),
+  };
 }
 
 // All time comparisons use fractional minutes (including seconds) so the schedule
@@ -51,7 +65,7 @@ export function formatTime(time24: string): string {
   if (!time24 || !time24.includes(":")) return "--:--";
   const [hRaw, m] = time24.split(":");
   const h = Number(hRaw);
-  if (isNaN(h) || !m) return "--:--";
+  if (Number.isNaN(h) || !m) return "--:--";
   const ampm = h >= 12 ? "p.m." : "a.m.";
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${h12}:${m} ${ampm}`;
@@ -91,7 +105,15 @@ export function getTodayPgDay(): number {
     timeZone: MEXICO_TZ,
     weekday: "long",
   });
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const days = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
   const jsDay = days.indexOf(mxStr);
   return jsDay === 0 ? 7 : jsDay;
 }
@@ -142,8 +164,7 @@ export function getActiveBuses(route: RouteData): ActiveBus[] {
   const todaysSchedules = getTodaysSchedules(route);
   if (todaysSchedules.length === 0) return [];
 
-  const { hours, minutes, seconds } = getMexicoTimeComponents();
-  const currentMins = hours * 60 + minutes + seconds / 60;
+  const currentMins = getMexicoMinutes();
 
   const namedPoints = route.points.filter((p) => p.point_role !== "waypoint");
   if (namedPoints.length < 2) return [];
@@ -202,6 +223,13 @@ export interface UpcomingDeparture {
   minutesUntil: number;
 }
 
+export interface NextDeparture {
+  routeName: string;
+  routeId: string;
+  departureTime: string;
+  minutesUntil: number;
+}
+
 export function getUpcomingDepartures(
   routes: RouteData[],
   limit = 5,
@@ -232,6 +260,36 @@ export function getUpcomingDepartures(
   return results
     .sort((a, b) => a.minutesUntil - b.minutesUntil)
     .slice(0, limit);
+}
+
+export function hasServiceToday(routes: RouteData[]): boolean {
+  return routes.some((route) => getTodaysSchedules(route).length > 0);
+}
+
+export function getNextDeparture(routes: RouteData[]): NextDeparture | null {
+  const currentMins = getMexicoMinutes();
+  let nextDeparture: NextDeparture | null = null;
+
+  for (const route of routes) {
+    for (const schedule of getTodaysSchedules(route)) {
+      const [h, m] = schedule.departure_time.split(":").map(Number);
+      const departureMins = h * 60 + m;
+      const minutesUntil = departureMins - currentMins;
+
+      if (minutesUntil < 0) continue;
+
+      if (!nextDeparture || minutesUntil < nextDeparture.minutesUntil) {
+        nextDeparture = {
+          routeName: route.name,
+          routeId: route.id,
+          departureTime: schedule.departure_time,
+          minutesUntil,
+        };
+      }
+    }
+  }
+
+  return nextDeparture;
 }
 
 export interface NearestStopArrival {

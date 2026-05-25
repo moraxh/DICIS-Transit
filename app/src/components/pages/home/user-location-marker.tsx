@@ -1,3 +1,5 @@
+import { DICIS_COORDS } from "@lib/constants";
+import { haversineMeters } from "@lib/schedule-utils";
 import { useMapData } from "@providers/map-provider";
 import L from "leaflet";
 import { useEffect } from "react";
@@ -18,25 +20,6 @@ const userIcon = L.divIcon({
   tooltipAnchor: [8, -8],
 });
 
-function haversineMeters(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const R = 6371000;
-  const φ1 = (lat1 * Math.PI) / 180;
-  const φ2 = (lat2 * Math.PI) / 180;
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-  const Δλ = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-const DICIS_LAT = 20.549879054215197;
-const DICIS_LNG = -101.2008414859346;
-
 export default function UserLocationMarker() {
   const { userLocation, setUserLocation } = useMapData();
 
@@ -45,7 +28,7 @@ export default function UserLocationMarker() {
 
     const watchId = navigator.geolocation.watchPosition(
       (pos) => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
-      () => {},
+      (err) => console.warn("Geolocation error:", err.code, err.message),
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
     );
 
@@ -57,8 +40,8 @@ export default function UserLocationMarker() {
   const distToDicis = haversineMeters(
     userLocation[0],
     userLocation[1],
-    DICIS_LAT,
-    DICIS_LNG,
+    DICIS_COORDS.lat,
+    DICIS_COORDS.lng,
   );
   const nearDicis = distToDicis < 500;
   const distLabel =

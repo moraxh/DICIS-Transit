@@ -197,12 +197,12 @@ export default function RouteLayer({
               >
                 <div className="relative bg-zinc-950 text-white border border-zinc-800 px-4 py-2.5 text-xs shadow-2xl flex flex-col items-center gap-1 min-w-[140px]">
                   {pt.point_role === "start" && (
-                    <span className="text-[9px] font-semibold uppercase tracking-widest text-zinc-500 mb-0.5">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-0.5">
                       Punto de salida
                     </span>
                   )}
                   {pt.point_role === "end" && (
-                    <span className="text-[9px] font-semibold uppercase tracking-widest text-zinc-500 mb-0.5">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-0.5">
                       Destino final
                     </span>
                   )}
@@ -210,18 +210,18 @@ export default function RouteLayer({
                     {pt.stop_name}
                   </span>
                   {pt.cumulative_minutes > 0 && (
-                    <span className="text-[10px] text-zinc-600 font-medium">
+                    <span className="text-xs text-zinc-600 font-medium">
                       +{pt.cumulative_minutes} min desde inicio
                     </span>
                   )}
                   <div className="w-full border-t border-zinc-800 my-0.5" />
-                  <span className="text-[10px] text-zinc-400 font-medium whitespace-nowrap">
+                  <span className="text-xs text-zinc-400 font-medium whitespace-nowrap">
                     {nextArrivalText}
                   </span>
                   {hasReports && (
                     <>
                       <div className="w-full border-t border-zinc-800 my-0.5" />
-                      <span className="text-[10px] text-red-400 font-semibold whitespace-nowrap flex items-center gap-1">
+                      <span className="text-xs text-red-400 font-semibold whitespace-nowrap flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
                         {totalReports} reporte{totalReports !== 1 ? "s" : ""}{" "}
                         hoy

@@ -24,14 +24,14 @@ async function fetchRoadPath(route: RouteData): Promise<[number, number][]> {
     if (cached) {
       try {
         const parsed = JSON.parse(cached) as CacheEntry | [number, number][];
-        // Support both old format (bare array) and new format (with cachedAt)
         if (Array.isArray(parsed)) {
-          return parsed;
-        }
-        if (Date.now() - parsed.cachedAt <= CACHE_TTL_MS) {
+          // Old format has no timestamp — treat as expired and refetch.
+          localStorage.removeItem(cacheKey);
+        } else if (Date.now() - parsed.cachedAt <= CACHE_TTL_MS) {
           return parsed.coords;
+        } else {
+          localStorage.removeItem(cacheKey);
         }
-        localStorage.removeItem(cacheKey);
       } catch {
         localStorage.removeItem(cacheKey);
       }
@@ -44,6 +44,9 @@ async function fetchRoadPath(route: RouteData): Promise<[number, number][]> {
   const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${waypoints}?geometries=geojson&overview=full&access_token=${NEXT_PUBLIC_MAPBOX_TOKEN}`;
 
   const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Mapbox HTTP ${res.status} for route ${route.id}`);
+  }
   const data = await res.json();
 
   if (data.code === "Ok" && data.routes?.[0]) {

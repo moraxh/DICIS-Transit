@@ -91,8 +91,17 @@ function nearestPathIndex(
 ): number {
   let bestIdx = 0;
   let bestD = Infinity;
-  for (let i = 0; i < path.length; i++) {
-    const d = (path[i][0] - lat) ** 2 + (path[i][1] - lng) ** 2;
+  for (let i = 0; i < path.length - 1; i++) {
+    const [x1, y1] = path[i];
+    const [x2, y2] = path[i + 1];
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const lenSq = dx * dx + dy * dy;
+    const t =
+      lenSq === 0
+        ? 0
+        : Math.max(0, Math.min(1, ((lat - x1) * dx + (lng - y1) * dy) / lenSq));
+    const d = (x1 + t * dx - lat) ** 2 + (y1 + t * dy - lng) ** 2;
     if (d < bestD) {
       bestD = d;
       bestIdx = i;
@@ -187,13 +196,26 @@ function computePositionAndHeading(
     position = pointAlongPathSegment(roadPath, segStart, segEnd, f);
 
     // Distance-based look-ahead (~40m) for stable bearing.
-    // Walk forward from current road index accumulating distance until threshold
-    // or segment boundary, whichever comes first.
-    const LOOKAHEAD_DEG = 0.00036; // ~40m in degrees (equirectangular approx)
-    const currentIdx = Math.min(
-      segStart + Math.round(f * (segEnd - segStart)),
-      segEnd,
-    );
+    // Find current index by walking from segStart accumulating distance
+    // proportional to f (spatial fraction, not temporal).
+    const LOOKAHEAD_DEG = 0.00036; // ~40m in degrees lat/lng (equirectangular)
+    let totalSegLen = 0;
+    for (let i = segStart; i < segEnd; i++) {
+      totalSegLen += segDist(roadPath[i], roadPath[i + 1]);
+    }
+    const targetDist = f * totalSegLen;
+    let currentIdx = segStart;
+    let walked = 0;
+    for (let i = segStart; i < segEnd; i++) {
+      const d = segDist(roadPath[i], roadPath[i + 1]);
+      if (walked + d >= targetDist) {
+        currentIdx = i;
+        break;
+      }
+      walked += d;
+      currentIdx = i + 1;
+    }
+    currentIdx = Math.min(currentIdx, segEnd);
     let aheadPoint: [number, number] = position;
     let accumulated = 0;
     for (let i = currentIdx; i < segEnd; i++) {
@@ -240,6 +262,17 @@ function SmoothBusMarker({
   const rafRef = useRef<number>(0);
   const smoothHeadingRef = useRef<number | null>(null);
 
+  // Refs so the perpetual RAF loop always sees latest values without restarting.
+  const departureTimeMinsRef = useRef(departureTimeMins);
+  const namedPointsRef = useRef(namedPoints);
+  const roadPathRef = useRef(roadPath);
+  const stopRoadIndicesRef = useRef(stopRoadIndices);
+
+  useEffect(() => { departureTimeMinsRef.current = departureTimeMins; }, [departureTimeMins]);
+  useEffect(() => { namedPointsRef.current = namedPoints; }, [namedPoints]);
+  useEffect(() => { roadPathRef.current = roadPath; }, [roadPath]);
+  useEffect(() => { stopRoadIndicesRef.current = stopRoadIndices; }, [stopRoadIndices]);
+
   const initialResult = computePositionAndHeading(
     departureTimeMins,
     namedPoints,
@@ -247,39 +280,49 @@ function SmoothBusMarker({
     stopRoadIndices,
   );
 
+  // Split position updates (5s interval) from heading animation (RAF).
+  // Position: buses move slowly — 5s resolution is imperceptible.
+  // Heading: smooth interpolation still runs at RAF rate for visual quality.
   useEffect(() => {
-    function frame() {
-      const marker = markerRef.current;
-      if (!marker) {
-        rafRef.current = requestAnimationFrame(frame);
-        return;
-      }
+    let alive = true;
+    const positionRef = { current: initialResult.position };
+    const targetHeadingRef = { current: initialResult.heading };
 
+    // Update position + target heading every 5s
+    function updatePosition() {
+      if (!alive) return;
       const { position, heading } = computePositionAndHeading(
-        departureTimeMins,
-        namedPoints,
-        roadPath,
-        stopRoadIndices,
+        departureTimeMinsRef.current,
+        namedPointsRef.current,
+        roadPathRef.current,
+        stopRoadIndicesRef.current,
       );
+      positionRef.current = position;
+      targetHeadingRef.current = heading;
+      const marker = markerRef.current;
+      if (marker) marker.setLatLng(position);
+    }
 
-      marker.setLatLng(position);
+    const posInterval = setInterval(updatePosition, 5000);
 
-      const el = marker.getElement();
-      if (el) {
-        const headingEl = el.querySelector<HTMLElement>(".bus-heading");
-        if (headingEl) {
-          // Low-pass filter: shortest-arc lerp toward target heading
-          const prev = smoothHeadingRef.current ?? heading;
-          let diff = heading - prev;
-          // Wrap diff to [-180, 180] for shortest-arc
-          if (diff > 180) diff -= 360;
-          if (diff < -180) diff += 360;
-          const blended = prev + diff * 0.15;
-          smoothHeadingRef.current = blended;
-          headingEl.style.transform = `rotate(${blended}deg)`;
+    // Heading-only RAF for smooth rotation interpolation
+    function frame() {
+      if (!alive) return;
+      const marker = markerRef.current;
+      if (marker) {
+        const el = marker.getElement();
+        if (el) {
+          const headingEl = el.querySelector<HTMLElement>(".bus-heading");
+          if (headingEl) {
+            const heading = targetHeadingRef.current;
+            const prev = smoothHeadingRef.current ?? heading;
+            const diff = ((heading - prev + 180) % 360 + 360) % 360 - 180;
+            const blended = prev + diff * 0.15;
+            smoothHeadingRef.current = blended;
+            headingEl.style.transform = `rotate(${blended}deg)`;
+          }
         }
       }
-
       rafRef.current = requestAnimationFrame(frame);
     }
 
@@ -295,10 +338,12 @@ function SmoothBusMarker({
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
+      alive = false;
+      clearInterval(posInterval);
       cancelAnimationFrame(rafRef.current);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [departureTimeMins, namedPoints, roadPath, stopRoadIndices]);
+  }, []); // intentionally empty — loop is perpetual, data flows via refs
 
   return (
     <Marker

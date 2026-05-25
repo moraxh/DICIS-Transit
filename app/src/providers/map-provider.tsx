@@ -1,9 +1,12 @@
 "use client";
 
+import { DICIS_COORDS } from "@lib/constants";
+import { haversineMeters } from "@lib/schedule-utils";
 import { supabase } from "@lib/supabase/client";
 import {
   createContext,
   type ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useState,
@@ -52,6 +55,27 @@ interface RouteData {
   schedules: RouteSchedule[];
 }
 
+type ScheduleFilter = "L-V" | "Sábado";
+type DirectionFilter = "Ida" | "Regreso";
+
+interface Notice {
+  id: string;
+  title: string;
+  content: string;
+  priority: "urgent" | "high" | "medium" | "low";
+  created_at: string;
+  expires_at: string | null;
+}
+
+interface RouteModification {
+  id: string;
+  route_id: string;
+  description: string;
+  status: "active" | "resolved";
+  valid_from: string;
+  valid_to: string | null;
+}
+
 interface MapContextType {
   routes: RouteData[];
   activeRouteId: string | null;
@@ -63,6 +87,13 @@ interface MapContextType {
   reportCounts: ReportCount[];
   isLoading: boolean;
   error: Error | null;
+  scheduleFilter: ScheduleFilter;
+  setScheduleFilter: (v: ScheduleFilter) => void;
+  directionFilter: DirectionFilter;
+  setDirectionFilter: (v: DirectionFilter) => void;
+  notices: Notice[];
+  modifications: RouteModification[];
+  alertsLoading: boolean;
 }
 
 const MapContext = createContext<MapContextType | undefined>(undefined);
@@ -77,6 +108,13 @@ export function MapProvider({ children }: { children: ReactNode }) {
   const [reportCounts, setReportCounts] = useState<ReportCount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+
+  const [scheduleFilter, setScheduleFilter] = useState<ScheduleFilter>("L-V");
+  const [directionFilter, setDirectionFilter] = useState<DirectionFilter>("Ida");
+
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [modifications, setModifications] = useState<RouteModification[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(true);
 
   useEffect(() => {
     async function loadRoutes() {
@@ -160,6 +198,58 @@ export function MapProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, []);
 
+  // Auto-detect schedule/direction filter once on mount
+  useEffect(() => {
+    const date = new Date();
+    const day = date.getDay();
+    const hour = date.getHours();
+
+    if (day === 6) setScheduleFilter("Sábado");
+
+    if (typeof navigator !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const dist = haversineMeters(pos.coords.latitude, pos.coords.longitude, DICIS_COORDS.lat, DICIS_COORDS.lng);
+          setDirectionFilter(dist <= 1500 ? "Regreso" : "Ida");
+        },
+        () => { setDirectionFilter(hour >= 13 ? "Regreso" : "Ida"); },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 600000 },
+      );
+    } else {
+      if (hour >= 13) setDirectionFilter("Regreso");
+    }
+  }, []);
+
+  // Load alerts (notices + route_modifications) — shared between HomeTab and AlertsTab
+  const loadAlerts = useCallback(async () => {
+    const [noticesRes, modsRes] = await Promise.all([
+      supabase
+        .from("notices")
+        .select("*")
+        .or("expires_at.is.null,expires_at.gt.now()"),
+      supabase
+        .from("route_modifications")
+        .select("*")
+        .eq("status", "active")
+        .order("created_at", { ascending: false }),
+    ]);
+
+    if (noticesRes.data) {
+      const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
+      setNotices(
+        [...noticesRes.data].sort(
+          (a, b) =>
+            priorityOrder[a.priority as keyof typeof priorityOrder] -
+            priorityOrder[b.priority as keyof typeof priorityOrder],
+        ),
+      );
+    }
+    if (modsRes.data) setModifications(modsRes.data as RouteModification[]);
+    setAlertsLoading(false);
+  }, []);
+
+  useEffect(() => { loadAlerts(); }, [loadAlerts]);
+
   return (
     <MapContext.Provider
       value={{
@@ -173,6 +263,13 @@ export function MapProvider({ children }: { children: ReactNode }) {
         reportCounts,
         isLoading,
         error,
+        scheduleFilter,
+        setScheduleFilter,
+        directionFilter,
+        setDirectionFilter,
+        notices,
+        modifications,
+        alertsLoading,
       }}
     >
       {children}
@@ -188,4 +285,5 @@ export function useMapData() {
   return context;
 }
 
-export type { RouteData, RoutePoint, RouteSchedule, ReportCount };
+export type { RouteData, RoutePoint, RouteSchedule, ReportCount, Notice, RouteModification };
+export type { ScheduleFilter, DirectionFilter };

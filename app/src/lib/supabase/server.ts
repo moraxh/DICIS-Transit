@@ -1,9 +1,17 @@
 import {
   NEXT_PUBLIC_SUPABASE_ANON_KEY,
   NEXT_PUBLIC_SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY,
 } from "@lib/env.server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies as cookiesPromise } from "next/headers";
+
+export function createServiceClient() {
+  return createSupabaseClient(NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false },
+  });
+}
 
 export async function createClient() {
   const cookieStore = await cookiesPromise();

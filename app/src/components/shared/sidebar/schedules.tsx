@@ -6,7 +6,6 @@ import {
   getMinutesUntil,
   getNextScheduleIndex,
   getTodayPgDay,
-  haversineMeters,
   isSchedulePassed,
 } from "@lib/schedule-utils";
 import { useMapData } from "@providers/map-provider";
@@ -26,9 +25,6 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
-
-type ScheduleType = "L-V" | "Sábado";
-type DirectionType = "Ida" | "Regreso";
 
 interface ScheduleItem {
   id: string;
@@ -57,7 +53,7 @@ function ScheduleList({ schedules }: { schedules: ScheduleItem[] }) {
       {nextIdx > 0 && (
         <div className="flex items-center gap-2 px-2">
           <History className="w-3 h-3 text-zinc-400 dark:text-zinc-500" />
-          <span className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+          <span className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
             Ya pasaron ({nextIdx})
           </span>
           <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700/50" />
@@ -72,9 +68,9 @@ function ScheduleList({ schedules }: { schedules: ScheduleItem[] }) {
           className="flex items-center gap-2 px-3 py-2 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/50"
         >
           <AlertCircle className="w-4 h-4 text-orange-500" />
-          <span className="text-[11px] font-bold text-orange-600 dark:text-orange-400">
+          <span className="text-xs font-bold text-orange-600 dark:text-orange-400">
             {formatMinutes(getMinutesUntil(schedules[nextIdx].departure_time))}{" "}
-            - ¡Coyeye!
+            - ¡Sale pronto!
           </span>
         </motion.div>
       )}
@@ -146,7 +142,7 @@ function ScheduleList({ schedules }: { schedules: ScheduleItem[] }) {
                   {isNext && (
                     <span
                       className={clsx(
-                        "text-[10px] font-medium mt-0.5",
+                        "text-xs font-medium mt-0.5",
                         isUrgent
                           ? "text-orange-600 dark:text-orange-400 font-bold"
                           : "text-emerald-600 dark:text-emerald-400",
@@ -176,7 +172,7 @@ function ScheduleList({ schedules }: { schedules: ScheduleItem[] }) {
                         <span
                           key={dayNum}
                           className={clsx(
-                            "w-4 h-4 flex items-center justify-center text-[9px] font-bold rounded transition-colors",
+                            "w-4 h-4 flex items-center justify-center text-xs font-bold rounded transition-colors",
                             isPassed
                               ? isToday
                                 ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
@@ -208,14 +204,15 @@ export default function SchedulesTab() {
     setActiveRouteId,
     setActiveStopId,
     isLoading,
+    userLocation,
+    scheduleFilter: schedule,
+    setScheduleFilter: setSchedule,
+    directionFilter: direction,
+    setDirectionFilter: setDirection,
   } = useMapData();
 
   const [mounted, setMounted] = useState(false);
-  const [schedule, setSchedule] = useState<ScheduleType>("L-V");
-  const [direction, setDirection] = useState<DirectionType>("Ida");
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
-
-  const [userPosition, setUserPosition] = useState<GeolocationPosition | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -224,36 +221,6 @@ export default function SchedulesTab() {
     const timeInterval = setInterval(() => {
       setCurrentTime(new Date());
     }, 60000);
-
-    const date = new Date();
-    const day = date.getDay();
-
-    if (day === 6) {
-      setSchedule("Sábado");
-    } else if (day >= 1 && day <= 5) {
-      setSchedule("L-V");
-    }
-
-    const hour = date.getHours();
-
-    if (typeof navigator !== "undefined" && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserPosition(position);
-          const { latitude, longitude } = position.coords;
-          const DICIS_LAT = 20.549879054215197;
-          const DICIS_LNG = -101.2008414859346;
-          const distanceToDICIS = haversineMeters(latitude, longitude, DICIS_LAT, DICIS_LNG);
-          setDirection(distanceToDICIS <= 1500 ? "Regreso" : "Ida");
-        },
-        () => {
-          setDirection(hour >= 13 ? "Regreso" : "Ida");
-        },
-        { enableHighAccuracy: false, timeout: 5000, maximumAge: 600000 },
-      );
-    } else {
-      if (hour >= 13) setDirection("Regreso");
-    }
 
     return () => clearInterval(timeInterval);
   }, []);
@@ -280,35 +247,10 @@ export default function SchedulesTab() {
       const isCurrentValid = filteredRoutes.some((r) => r.id === activeRouteId);
 
       if (!isCurrentValid) {
-        const DICIS_LAT = 20.549879054215197;
-        const DICIS_LNG = -101.2008414859346;
-
-        const findClosestRoute = (userLat: number, userLng: number) => {
-          let bestRouteId = filteredRoutes[0].id;
-          let minDistance = Infinity;
-
-          for (const route of filteredRoutes) {
-            for (const point of route.points ?? []) {
-              const dist = haversineMeters(userLat, userLng, point.latitude, point.longitude);
-              if (dist < minDistance) {
-                minDistance = dist;
-                bestRouteId = route.id;
-              }
-            }
-          }
-
-          setActiveRouteId(bestRouteId);
-        };
-
-        // Reuse cached position from mounting effect — no second geolocation prompt
-        if (userPosition) {
-          findClosestRoute(userPosition.coords.latitude, userPosition.coords.longitude);
-        } else {
-          findClosestRoute(DICIS_LAT, DICIS_LNG);
-        }
+        setActiveRouteId(filteredRoutes[0].id);
       }
     }
-  }, [filteredRoutes, activeRouteId, setActiveRouteId, isLoading, userPosition]);
+  }, [filteredRoutes, activeRouteId, setActiveRouteId, isLoading]);
 
   const routesWithSchedules = useMemo(() => {
     return filteredRoutes.map((route) => {
@@ -344,7 +286,7 @@ export default function SchedulesTab() {
                 })}
               </span>
             </div>
-            <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+            <span className="text-xs text-zinc-400 dark:text-zinc-500">
               {currentTime.toLocaleDateString("es-MX", {
                 weekday: "short",
                 day: "numeric",
@@ -355,7 +297,7 @@ export default function SchedulesTab() {
         )}
 
         <div className="bg-zinc-200/50 dark:bg-zinc-900/50 p-1 rounded-[16px] flex relative">
-          {(["L-V", "Sábado"] as ScheduleType[]).map((tab) => (
+          {(["L-V", "Sábado"] as const).map((tab) => (
             <button
               type="button"
               key={tab}
@@ -382,7 +324,7 @@ export default function SchedulesTab() {
         </div>
 
         <div className="bg-zinc-200/50 dark:bg-zinc-900/50 p-1 rounded-[16px] flex relative">
-          {(["Ida", "Regreso"] as DirectionType[]).map((tab) => (
+          {(["Ida", "Regreso"] as const).map((tab) => (
             <button
               type="button"
               key={tab}
@@ -512,7 +454,7 @@ export default function SchedulesTab() {
                         >
                           {route.name}
                         </h3>
-                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-semibold mt-0.5 tracking-tight flex items-center gap-1.5">
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 font-semibold mt-0.5 tracking-tight flex items-center gap-1.5">
                           {(() => {
                             const nextIdx = getNextScheduleIndex(
                               route.sortedSchedules,
@@ -536,7 +478,7 @@ export default function SchedulesTab() {
                                 />
                                 {route.sortedSchedules.length} salidas
                                 {hasRemaining && nextIdx > 0 && (
-                                  <span className="text-[10px] text-zinc-400 dark:text-zinc-500 ml-1">
+                                  <span className="text-xs text-zinc-400 dark:text-zinc-500 ml-1">
                                     ({route.sortedSchedules.length - nextIdx}{" "}
                                     restantes)
                                   </span>
