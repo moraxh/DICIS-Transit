@@ -1,52 +1,66 @@
-import { useRouteRoadPath } from "@hooks/use-route-road-path";
+import {
+  MarkerContent,
+  MarkerTooltip,
+  MapMarker,
+  MapRoute,
+} from "@components/ui/map";
+import { useRouteGeometry } from "@hooks/use-route-geometry";
+import { pointToLngLat, latLngPathToLngLatPath } from "@lib/map-coordinates";
 import { getNextArrivalText } from "@lib/schedule-utils";
 import type { RouteData } from "@providers/map-provider";
 import { useMapData } from "@providers/map-provider";
-import L from "leaflet";
-import { useEffect, useRef, useState } from "react";
-import { Marker, Polyline, Tooltip } from "react-leaflet";
+import { Check, MapPin } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
-const createStopIcon = (delay: number, hasReports = false) => {
-  return L.divIcon({
-    className: "bg-transparent border-none",
-    html: hasReports
-      ? `<div style="position:relative;width:12px;height:12px;animation:popIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275) forwards;animation-delay:${delay}s;opacity:0;transform:scale(0.5);">
-           <div style="width:12px;height:12px;background:#ef4444;border-radius:50%;box-shadow:0 0 0 2px rgba(0,0,0,0.6),0 0 8px rgba(239,68,68,0.6);"></div>
-           <div style="position:absolute;inset:0;border-radius:50%;background:rgba(239,68,68,0.3);animation:busRipple 2.5s ease-out ${delay + 0.4}s infinite;"></div>
-         </div>`
-      : `<div class="stop-dot" style="width:8px;height:8px;animation:popIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275) forwards;animation-delay:${delay}s;opacity:0;transform:scale(0.5);"></div>`,
-    iconSize: hasReports ? [12, 12] : [8, 8],
-    iconAnchor: hasReports ? [6, 6] : [4, 4],
-    popupAnchor: [0, -6],
-    tooltipAnchor: hasReports ? [6, -4] : [4, -2],
-  });
-};
+function StopMarker({
+  pointRole,
+  hasReports,
+  totalReports,
+}: {
+  pointRole: RouteData["points"][number]["point_role"];
+  hasReports: boolean;
+  totalReports: number;
+}) {
+  if (pointRole === "start") {
+    return (
+      <div className="relative">
+        <div className="rounded-full bg-white p-1 shadow-[0_0_0_3px_rgba(0,0,0,0.55),0_6px_18px_rgba(0,0,0,0.4)]">
+          <MapPin className="size-5 fill-white text-black" strokeWidth={2.2} />
+        </div>
+      </div>
+    );
+  }
 
-const createStartIcon = (delay: number) => {
-  return L.divIcon({
-    className: "bg-transparent border-none",
-    html: `<div style="animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; animation-delay: ${delay}s; opacity: 0; transform: scale(0.5);">
-      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="#ffffff" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 1px 4px rgba(0,0,0,0.8))"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3" fill="#000000"/></svg>
-    </div>`,
-    iconSize: [22, 22],
-    iconAnchor: [11, 22],
-    popupAnchor: [0, -22],
-    tooltipAnchor: [11, -11],
-  });
-};
+  if (pointRole === "end") {
+    return (
+      <div className="relative">
+        <div className="rounded-full bg-black p-1 shadow-[0_0_0_3px_rgba(255,255,255,0.25),0_6px_18px_rgba(0,0,0,0.45)]">
+          <MapPin className="size-5 fill-black text-white" strokeWidth={2.2} />
+          <Check
+            className="absolute top-1/2 left-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 text-white"
+            strokeWidth={3}
+          />
+        </div>
+      </div>
+    );
+  }
 
-const createEndIcon = (delay: number) => {
-  return L.divIcon({
-    className: "bg-transparent border-none",
-    html: `<div style="animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; animation-delay: ${delay}s; opacity: 0; transform: scale(0.5);">
-      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="#000000" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 1px 4px rgba(0,0,0,0.8))"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><path d="m9 10 2 2 4-4"/></svg>
-    </div>`,
-    iconSize: [22, 22],
-    iconAnchor: [11, 22],
-    popupAnchor: [0, -22],
-    tooltipAnchor: [11, -11],
-  });
-};
+  return (
+    <div className="relative">
+      {hasReports ? (
+        <>
+          <span className="absolute inset-0 rounded-full bg-red-400/30 animate-[busRipple_2.5s_ease-out_infinite]" />
+          <span className="flex size-3 items-center justify-center rounded-full bg-red-500 shadow-[0_0_0_2px_rgba(0,0,0,0.65),0_0_14px_rgba(239,68,68,0.55)]" />
+          <span className="absolute -top-2 -right-2 rounded-full bg-red-500 px-1 py-0.5 text-[9px] font-bold leading-none text-white shadow">
+            {totalReports}
+          </span>
+        </>
+      ) : (
+        <span className="stop-dot flex size-2" />
+      )}
+    </div>
+  );
+}
 
 export default function RouteLayer({
   route,
@@ -56,186 +70,154 @@ export default function RouteLayer({
   isHighlight: boolean;
 }) {
   const { reportCounts } = useMapData();
-  const roadPath = useRouteRoadPath(route);
-  const path =
-    roadPath.length > 0
-      ? roadPath
-      : route.points.map(
-          (pt) => [pt.latitude, pt.longitude] as [number, number],
-        );
-  // Start invisible on first session load to sync with cinematic fly-in.
-  // On route switches after initial load, skip the delay to avoid flicker.
+  const roadPath = useRouteGeometry(route);
   const [isVisible, setIsVisible] = useState(
     () =>
       typeof window !== "undefined" &&
       sessionStorage.getItem("dicis_map_flown") === "true",
   );
-  const polylineRef = useRef<L.Polyline>(null);
 
   useEffect(() => {
     if (isVisible) return;
-    const timer = setTimeout(() => {
-      setIsVisible(true);
-    }, 850);
+    const timer = setTimeout(() => setIsVisible(true), 850);
     return () => clearTimeout(timer);
   }, [isVisible]);
 
-  if (!isVisible) return null; // completely hidden while syncing Map Flight Animation
+  const path = useMemo(
+    () =>
+      roadPath.length > 0
+        ? latLngPathToLngLatPath(roadPath)
+        : route.points.map(pointToLngLat),
+    [roadPath, route.points],
+  );
 
-  const drawLineHandler = {
-    add: (e: L.LeafletEvent) => {
-      if (isHighlight && e.target) {
-        const el = (e.target as L.Polyline).getElement();
-        if (el && "getTotalLength" in el) {
-          const svgEl = el as SVGGeometryElement;
-          const length = svgEl.getTotalLength();
-          svgEl.style.strokeDasharray = `${length}`;
-          svgEl.style.strokeDashoffset = `${length}`;
-          svgEl.getBoundingClientRect();
-          svgEl.style.animation = "drawLine 1s ease-in-out forwards";
-          setTimeout(() => {
-            svgEl.style.strokeDasharray = "";
-            svgEl.style.strokeDashoffset = "";
-          }, 1050);
-        }
-      }
-    },
-  };
+  if (!isVisible || path.length < 2) return null;
+
+  const stopsOnly = route.points.filter(
+    (point) => point.point_role !== "waypoint",
+  );
+  const stopIndexMap = new Map(
+    stopsOnly.map((point, index) => [point.stop_id, index]),
+  );
 
   return (
     <>
       {isHighlight ? (
         <>
-          {/* Glow halo layer */}
-          <Polyline
-            key={`polyline-glow-${route.id}`}
-            positions={path}
-            weight={10}
-            opacity={0.15}
+          <MapRoute
+            id={`${route.id}-glow`}
+            coordinates={path}
             color="#ffffff"
-            lineCap="round"
-            lineJoin="round"
-            noClip={true}
+            width={10}
+            opacity={0.16}
             interactive={false}
           />
-          {/* Main active line */}
-          <Polyline
-            key={`polyline-${route.id}-active`}
-            ref={polylineRef}
-            positions={path}
-            weight={3}
-            opacity={1}
+          <MapRoute
+            id={`${route.id}-active`}
+            coordinates={path}
             color="#ffffff"
-            lineCap="round"
-            lineJoin="round"
-            noClip={true}
-            className="animated-polyline"
-            eventHandlers={drawLineHandler}
+            width={3}
+            opacity={1}
           />
         </>
       ) : (
-        <Polyline
-          key={`polyline-${route.id}-inactive`}
-          positions={path}
-          weight={2}
-          opacity={0.08}
+        <MapRoute
+          id={`${route.id}-inactive`}
+          coordinates={path}
           color="#71717a"
-          lineCap="round"
-          lineJoin="round"
-          noClip={true}
+          width={2}
+          opacity={0.12}
           interactive={false}
         />
       )}
 
-      {(() => {
-        const stopsOnly = route.points.filter((p) => p.point_role !== "waypoint");
-        const stopIndexMap = new Map(stopsOnly.map((p, i) => [p.stop_id, i]));
-        return route.points.map((pt, idx) => {
-        if (pt.point_role === "waypoint") return null;
-
-        const stopIdx = stopIndexMap.get(pt.stop_id) ?? 0;
-        const delay = isHighlight ? Math.max(0, stopIdx * 0.1) : 0;
+      {route.points.map((point, index) => {
+        if (point.point_role === "waypoint") return null;
 
         const stopReports = reportCounts.filter(
-          (r) => r.stop_id === pt.stop_id && r.route_id === route.id,
+          (report) =>
+            report.stop_id === point.stop_id && report.route_id === route.id,
         );
         const hasReports = stopReports.length > 0;
         const totalReports = stopReports.reduce(
-          (s, r) => s + r.report_count,
+          (sum, report) => sum + report.report_count,
           0,
         );
-
-        let icon: import("leaflet").DivIcon;
-        if (pt.point_role === "start") {
-          icon = createStartIcon(delay);
-        } else if (pt.point_role === "end") {
-          icon = createEndIcon(delay);
-        } else {
-          icon = createStopIcon(delay, hasReports);
-        }
-
         const nextArrivalText = getNextArrivalText(
           route,
-          pt.cumulative_minutes,
-          pt.point_role === "start",
+          point.cumulative_minutes,
+          point.point_role === "start",
         );
+        const stopIndex = stopIndexMap.get(point.stop_id) ?? index;
 
         return (
-          <Marker
-            key={`${route.id}-${pt.stop_id}-${idx}`}
-            position={[pt.latitude, pt.longitude]}
-            icon={icon}
-            zIndexOffset={isHighlight ? 1000 : 0}
-            interactive={isHighlight} // Make marker only interactive if route highlighted
+          <MapMarker
+            key={`${route.id}-${point.stop_id}-${index}`}
+            longitude={point.longitude}
+            latitude={point.latitude}
           >
-            {isHighlight && (
-              <Tooltip
-                direction="top"
-                offset={[0, -12]}
-                opacity={1}
-                className="shadcn-tooltip z-50"
+            <MarkerContent>
+              <div
+                className={
+                  isHighlight
+                    ? "animate-[popIn_0.4s_cubic-bezier(0.175,0.885,0.32,1.275)_forwards]"
+                    : undefined
+                }
+                style={{
+                  animationDelay: `${Math.max(0, stopIndex * 0.1)}s`,
+                  opacity: isHighlight ? 0 : 1,
+                  transform: isHighlight ? "scale(0.5)" : undefined,
+                }}
               >
-                <div className="relative bg-zinc-950 text-white border border-zinc-800 px-4 py-2.5 text-xs shadow-2xl flex flex-col items-center gap-1 min-w-[140px]">
-                  {pt.point_role === "start" && (
-                    <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-0.5">
+                <StopMarker
+                  pointRole={point.point_role}
+                  hasReports={hasReports}
+                  totalReports={totalReports}
+                />
+              </div>
+            </MarkerContent>
+
+            {isHighlight ? (
+              <MarkerTooltip className="border border-zinc-800 bg-zinc-950 px-0 py-0 text-white shadow-2xl">
+                <div className="relative flex min-w-[140px] flex-col items-center gap-1 px-4 py-2.5 text-center text-xs">
+                  {point.point_role === "start" ? (
+                    <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
                       Punto de salida
                     </span>
-                  )}
-                  {pt.point_role === "end" && (
-                    <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-0.5">
+                  ) : null}
+                  {point.point_role === "end" ? (
+                    <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
                       Destino final
                     </span>
-                  )}
-                  <span className="font-bold text-[13px] leading-tight text-center">
-                    {pt.stop_name}
+                  ) : null}
+                  <span className="text-[13px] leading-tight font-bold">
+                    {point.stop_name}
                   </span>
-                  {pt.cumulative_minutes > 0 && (
-                    <span className="text-xs text-zinc-600 font-medium">
-                      +{pt.cumulative_minutes} min desde inicio
+                  {point.cumulative_minutes > 0 ? (
+                    <span className="text-xs font-medium text-zinc-600">
+                      +{point.cumulative_minutes} min desde inicio
                     </span>
-                  )}
-                  <div className="w-full border-t border-zinc-800 my-0.5" />
-                  <span className="text-xs text-zinc-400 font-medium whitespace-nowrap">
+                  ) : null}
+                  <div className="my-0.5 w-full border-t border-zinc-800" />
+                  <span className="whitespace-nowrap text-xs font-medium text-zinc-400">
                     {nextArrivalText}
                   </span>
-                  {hasReports && (
+                  {hasReports ? (
                     <>
-                      <div className="w-full border-t border-zinc-800 my-0.5" />
-                      <span className="text-xs text-red-400 font-semibold whitespace-nowrap flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
+                      <div className="my-0.5 w-full border-t border-zinc-800" />
+                      <span className="flex items-center gap-1 whitespace-nowrap text-xs font-semibold text-red-400">
+                        <span className="inline-block size-1.5 rounded-full bg-red-400" />
                         {totalReports} reporte{totalReports !== 1 ? "s" : ""}{" "}
                         hoy
                       </span>
                     </>
-                  )}
-                  <div className="absolute -bottom-[5px] left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-zinc-950 border-b border-r border-zinc-800 rotate-45 z-[-1]" />
+                  ) : null}
                 </div>
-              </Tooltip>
-            )}
-          </Marker>
+              </MarkerTooltip>
+            ) : null}
+          </MapMarker>
         );
-      });
-      })()}
+      })}
     </>
   );
 }

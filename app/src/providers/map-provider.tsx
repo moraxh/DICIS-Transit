@@ -1,7 +1,5 @@
 "use client";
 
-import { DICIS_COORDS } from "@lib/constants";
-import { haversineMeters } from "@lib/schedule-utils";
 import { supabase } from "@lib/supabase/client";
 import {
   createContext,
@@ -110,11 +108,32 @@ export function MapProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<Error | null>(null);
 
   const [scheduleFilter, setScheduleFilter] = useState<ScheduleFilter>("L-V");
-  const [directionFilter, setDirectionFilter] = useState<DirectionFilter>("Ida");
+  const [directionFilter, setDirectionFilter] =
+    useState<DirectionFilter>("Ida");
 
   const [notices, setNotices] = useState<Notice[]>([]);
   const [modifications, setModifications] = useState<RouteModification[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(true);
+
+  const getDefaultRouteId = useCallback((parsedRoutes: RouteData[]) => {
+    const preferredRoute = parsedRoutes.find(
+      (route) =>
+        route.scheduleType === "weekday" &&
+        route.direction === "to_dicis" &&
+        route.name === "L-V: ENMSS a DICIS",
+    );
+
+    if (preferredRoute) return preferredRoute.id;
+
+    const weekdayOutbound = parsedRoutes.find(
+      (route) =>
+        route.scheduleType === "weekday" && route.direction === "to_dicis",
+    );
+    if (weekdayOutbound) return weekdayOutbound.id;
+
+    const active = parsedRoutes.find((route) => route.isActive);
+    return active?.id ?? parsedRoutes[0]?.id ?? null;
+  }, []);
 
   useEffect(() => {
     async function loadRoutes() {
@@ -124,13 +143,19 @@ export function MapProvider({ children }: { children: ReactNode }) {
           await Promise.all([
             supabase
               .from("public_route_points")
-              .select("route_id,route_name,route_is_active,route_direction,route_schedule_type,stop_order,point_role,time_from_previous_mins,cumulative_minutes,stop_id,stop_name,latitude,longitude")
+              .select(
+                "route_id,route_name,route_is_active,route_direction,route_schedule_type,stop_order,point_role,time_from_previous_mins,cumulative_minutes,stop_id,stop_name,latitude,longitude",
+              )
               .order("stop_order", { ascending: true }),
             supabase
               .from("schedules")
               .select("id,route_id,departure_time,days_active")
               .order("departure_time", { ascending: true }),
-            supabase.from("recent_report_counts").select("route_id,stop_id,stop_name,route_name,report_type,report_count,latest_at"),
+            supabase
+              .from("recent_report_counts")
+              .select(
+                "route_id,stop_id,stop_name,route_name,report_type,report_count,latest_at",
+              ),
           ]);
 
         if (pointsResponse.error) throw pointsResponse.error;
@@ -158,7 +183,8 @@ export function MapProvider({ children }: { children: ReactNode }) {
               direction:
                 (pt.route_direction as "to_dicis" | "from_dicis") ?? "to_dicis",
               scheduleType:
-                (pt.route_schedule_type as "weekday" | "saturday" | "sunday") ?? "weekday",
+                (pt.route_schedule_type as "weekday" | "saturday" | "sunday") ??
+                "weekday",
               points: [],
               schedules: schedulesByRoute.get(pt.route_id) ?? [],
             });
@@ -170,9 +196,7 @@ export function MapProvider({ children }: { children: ReactNode }) {
         setRoutes(parsedRoutes);
 
         if (parsedRoutes.length > 0) {
-          const active = parsedRoutes.find((r) => r.isActive);
-          if (active) setActiveRouteId(active.id);
-          else setActiveRouteId(parsedRoutes[0].id);
+          setActiveRouteId(getDefaultRouteId(parsedRoutes));
         }
       } catch (err: unknown) {
         console.error("Error loading routes data:", err);
@@ -187,37 +211,19 @@ export function MapProvider({ children }: { children: ReactNode }) {
     }
 
     loadRoutes();
-  }, []);
+  }, [getDefaultRouteId]);
 
   // PERF-2: Poll reportCounts every 60s so map markers reflect new student reports
   useEffect(() => {
     const interval = setInterval(async () => {
-      const { data } = await supabase.from("recent_report_counts").select("route_id,stop_id,stop_name,route_name,report_type,report_count,latest_at");
+      const { data } = await supabase
+        .from("recent_report_counts")
+        .select(
+          "route_id,stop_id,stop_name,route_name,report_type,report_count,latest_at",
+        );
       if (data) setReportCounts(data as ReportCount[]);
     }, 60_000);
     return () => clearInterval(interval);
-  }, []);
-
-  // Auto-detect schedule/direction filter once on mount
-  useEffect(() => {
-    const date = new Date();
-    const day = date.getDay();
-    const hour = date.getHours();
-
-    if (day === 6) setScheduleFilter("Sábado");
-
-    if (typeof navigator !== "undefined" && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const dist = haversineMeters(pos.coords.latitude, pos.coords.longitude, DICIS_COORDS.lat, DICIS_COORDS.lng);
-          setDirectionFilter(dist <= 1500 ? "Regreso" : "Ida");
-        },
-        () => { setDirectionFilter(hour >= 13 ? "Regreso" : "Ida"); },
-        { enableHighAccuracy: false, timeout: 5000, maximumAge: 600000 },
-      );
-    } else {
-      if (hour >= 13) setDirectionFilter("Regreso");
-    }
   }, []);
 
   // Load alerts (notices + route_modifications) — shared between HomeTab and AlertsTab
@@ -248,7 +254,9 @@ export function MapProvider({ children }: { children: ReactNode }) {
     setAlertsLoading(false);
   }, []);
 
-  useEffect(() => { loadAlerts(); }, [loadAlerts]);
+  useEffect(() => {
+    loadAlerts();
+  }, [loadAlerts]);
 
   return (
     <MapContext.Provider
@@ -285,5 +293,12 @@ export function useMapData() {
   return context;
 }
 
-export type { RouteData, RoutePoint, RouteSchedule, ReportCount, Notice, RouteModification };
+export type {
+  RouteData,
+  RoutePoint,
+  RouteSchedule,
+  ReportCount,
+  Notice,
+  RouteModification,
+};
 export type { ScheduleFilter, DirectionFilter };

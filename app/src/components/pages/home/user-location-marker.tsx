@@ -1,24 +1,8 @@
+import { MarkerContent, MarkerTooltip, MapMarker } from "@components/ui/map";
 import { DICIS_COORDS } from "@lib/constants";
 import { haversineMeters } from "@lib/schedule-utils";
 import { useMapData } from "@providers/map-provider";
-import L from "leaflet";
 import { useEffect } from "react";
-import { Marker, Tooltip } from "react-leaflet";
-
-const userIcon = L.divIcon({
-  className: "bg-transparent border-none",
-  html: `<div style="
-    width: 16px; height: 16px;
-    background: #3b82f6;
-    border: 3px solid white;
-    border-radius: 50%;
-    box-shadow: 0 0 0 4px rgba(59,130,246,0.3);
-    animation: userPulse 2s ease-in-out infinite;
-  "></div>`,
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
-  tooltipAnchor: [8, -8],
-});
 
 export default function UserLocationMarker() {
   const { userLocation, setUserLocation } = useMapData();
@@ -27,8 +11,9 @@ export default function UserLocationMarker() {
     if (typeof navigator === "undefined" || !navigator.geolocation) return;
 
     const watchId = navigator.geolocation.watchPosition(
-      (pos) => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
-      (err) => console.warn("Geolocation error:", err.code, err.message),
+      (position) =>
+        setUserLocation([position.coords.latitude, position.coords.longitude]),
+      (error) => console.warn("Geolocation error:", error.code, error.message),
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
     );
 
@@ -50,24 +35,21 @@ export default function UserLocationMarker() {
       : `${(distToDicis / 1000).toFixed(1)} km de DICIS`;
 
   return (
-    <Marker position={userLocation} icon={userIcon} zIndexOffset={2000}>
-      <Tooltip
-        direction="top"
-        offset={[0, -8]}
-        opacity={1}
-        className="shadcn-tooltip"
-      >
-        <div className="relative bg-zinc-950 text-white border border-zinc-800 px-4 py-2.5 text-xs shadow-2xl flex flex-col items-center gap-1">
-          <span className="font-bold text-[13px] leading-tight flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+    <MapMarker longitude={userLocation[1]} latitude={userLocation[0]}>
+      <MarkerContent>
+        <div className="size-4 rounded-full border-[3px] border-white bg-blue-500 shadow-[0_0_0_4px_rgba(59,130,246,0.3)] animate-[userPulse_2s_ease-in-out_infinite]" />
+      </MarkerContent>
+      <MarkerTooltip className="border border-zinc-800 bg-zinc-950 px-0 py-0 text-white shadow-2xl">
+        <div className="relative flex flex-col items-center gap-1 px-4 py-2.5 text-xs">
+          <span className="flex items-center gap-1.5 text-[13px] leading-tight font-bold">
+            <span className="size-2 shrink-0 rounded-full bg-blue-500" />
             Tu ubicación
           </span>
-          <span className="text-[10px] text-zinc-400 font-medium whitespace-nowrap">
+          <span className="whitespace-nowrap text-[10px] font-medium text-zinc-400">
             {nearDicis ? "Cerca de DICIS" : distLabel}
           </span>
-          <div className="absolute -bottom-[5px] left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-zinc-950 border-b border-r border-zinc-800 rotate-45 z-[-1]" />
         </div>
-      </Tooltip>
-    </Marker>
+      </MarkerTooltip>
+    </MapMarker>
   );
 }

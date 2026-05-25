@@ -1,28 +1,60 @@
 "use client";
 
+import { useMap } from "@components/ui/map";
 import { useEffect } from "react";
-import { useMap } from "react-leaflet";
 
 export default function MapResizeHandler() {
-  const map = useMap();
+  const { map, isLoaded } = useMap();
 
-  // Re render the map on window resize to fix leaflet's weird behavior of not resizing the map when the container size changes
   useEffect(() => {
-    // Invalidate after mount so Leaflet recalculates after any CSS transitions settle
-    const timer = setTimeout(() => map.invalidateSize(), 1100);
-
-    const observer = new ResizeObserver(() => {
-      map.invalidateSize();
-    });
+    if (!isLoaded || !map) return;
 
     const container = map.getContainer();
-    observer.observe(container);
+    const sidebarWrapper = container.closest("[data-slot='sidebar-wrapper']");
+    let frameId: number | null = null;
+
+    const scheduleResize = () => {
+      if (frameId !== null) return;
+
+      frameId = window.requestAnimationFrame(() => {
+        frameId = null;
+        map.resize();
+      });
+    };
+
+    const timer = window.setTimeout(scheduleResize, 250);
+    const handleTransitionEvent = (event: TransitionEvent) => {
+      if (
+        event.propertyName !== "width" &&
+        event.propertyName !== "left" &&
+        event.propertyName !== "right"
+      ) {
+        return;
+      }
+
+      scheduleResize();
+    };
+
+    window.addEventListener("resize", scheduleResize);
+    sidebarWrapper?.addEventListener("transitionrun", handleTransitionEvent);
+    sidebarWrapper?.addEventListener("transitionend", handleTransitionEvent);
 
     return () => {
-      clearTimeout(timer);
-      observer.disconnect();
+      window.clearTimeout(timer);
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+      window.removeEventListener("resize", scheduleResize);
+      sidebarWrapper?.removeEventListener(
+        "transitionrun",
+        handleTransitionEvent,
+      );
+      sidebarWrapper?.removeEventListener(
+        "transitionend",
+        handleTransitionEvent,
+      );
     };
-  }, [map]);
+  }, [isLoaded, map]);
 
   return null;
 }
