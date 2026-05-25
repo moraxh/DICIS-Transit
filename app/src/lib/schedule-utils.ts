@@ -2,23 +2,6 @@ import type { RouteData, RouteSchedule } from "@providers/map-provider";
 
 const MEXICO_TZ = "America/Mexico_City";
 
-function getMexicoMinutes(): number {
-  const now = new Date();
-  const mxStr = now.toLocaleString("en-US", {
-    timeZone: MEXICO_TZ,
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const [h, m] = mxStr.split(":").map(Number);
-  return h * 60 + m;
-}
-
-export function getMexicoCurrentMins(): number {
-  const { hours, minutes, seconds, milliseconds } = getMexicoTimeComponents();
-  return hours * 60 + minutes + seconds / 60 + milliseconds / 60000;
-}
-
 function getMexicoTimeComponents(): {
   hours: number;
   minutes: number;
@@ -35,6 +18,17 @@ function getMexicoTimeComponents(): {
   });
   const [h, m, s] = mxStr.split(":").map(Number);
   return { hours: h, minutes: m, seconds: s, milliseconds: now.getMilliseconds() };
+}
+
+// All time comparisons use fractional minutes (including seconds) so the schedule
+// list and the bus position on the map agree on whether a departure has passed.
+function getMexicoMinutes(): number {
+  const { hours, minutes, seconds, milliseconds } = getMexicoTimeComponents();
+  return hours * 60 + minutes + seconds / 60 + milliseconds / 60000;
+}
+
+export function getMexicoCurrentMins(): number {
+  return getMexicoMinutes();
 }
 
 export function haversineMeters(
@@ -70,9 +64,10 @@ export function getMinutesUntil(departureTime: string): number {
 
 export function formatMinutesRelative(minutes: number): string {
   if (minutes <= 0) return "ahora";
-  if (minutes < 60) return `en ${minutes} min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
+  const rounded = Math.ceil(minutes);
+  if (rounded < 60) return `en ${rounded} min`;
+  const h = Math.floor(rounded / 60);
+  const m = rounded % 60;
   return m > 0 ? `en ${h}h ${m}m` : `en ${h}h`;
 }
 

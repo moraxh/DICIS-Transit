@@ -91,6 +91,10 @@ export default function ReportSheet({ open, onOpenChange }: ReportSheetProps) {
         toast.error("Ingresa un retraso válido en minutos.");
         return;
       }
+      if (delayValue > 120) {
+        toast.error("El retraso máximo permitido es 120 minutos.");
+        return;
+      }
     }
 
     setIsSubmitting(true);

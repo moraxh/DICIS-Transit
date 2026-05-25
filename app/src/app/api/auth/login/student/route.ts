@@ -1,4 +1,4 @@
-import { CAMPUS_ALLOWED_CIDR, REQUIRE_CAMPUS_WIFI } from "@lib/env";
+import { CAMPUS_ALLOWED_CIDR, REQUIRE_CAMPUS_WIFI } from "@lib/env.server";
 import getIPFromNextRequest from "@lib/server/utils/http";
 import { createClient } from "@lib/supabase/server";
 import ipaddr from "ipaddr.js";

@@ -46,6 +46,10 @@ export default function AdminModificationsPage() {
         .order("created_at", { ascending: false }),
       supabase.from("routes").select("id, name").eq("is_active", true),
     ]);
+    if (modsRes.error) {
+      console.error("Failed to load modifications:", modsRes.error);
+      toast.error("Error al cargar modificaciones");
+    }
     if (modsRes.data) setModifications(modsRes.data);
     if (routesRes.data) setRoutes(routesRes.data);
     setIsLoading(false);

@@ -72,6 +72,10 @@ export default function AdminReportsPage() {
       supabase.from("routes").select("id, name"),
     ]);
 
+    if (reportsRes.error) {
+      console.error("Failed to load reports:", reportsRes.error);
+      toast.error("Error al cargar reportes");
+    }
     if (reportsRes.data) setReports(reportsRes.data);
     if (routesRes.data) setRoutes(routesRes.data);
     setIsLoading(false);

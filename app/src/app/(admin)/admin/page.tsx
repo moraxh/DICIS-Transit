@@ -38,6 +38,7 @@ export default function AdminDashboardPage() {
   const [counts, setCounts] = useState<DashboardCounts | null>(null);
   const [recentReports, setRecentReports] = useState<RecentReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -70,6 +71,14 @@ export default function AdminDashboardPage() {
             .limit(5),
         ]);
 
+      const firstError = routesRes.error ?? noticesRes.error ?? modsRes.error ?? reportsCountRes.error ?? reportsRes.error;
+      if (firstError) {
+        console.error("Dashboard load error:", firstError);
+        setError("Error al cargar datos del dashboard");
+        setIsLoading(false);
+        return;
+      }
+
       setCounts({
         activeRoutes: routesRes.count ?? 0,
         activeNotices: noticesRes.count ?? 0,
@@ -92,6 +101,14 @@ export default function AdminDashboardPage() {
             <div key={i} className="h-24 rounded-xl bg-white/5 animate-pulse" />
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8">
+        <p className="text-sm text-red-400">{error}</p>
       </div>
     );
   }

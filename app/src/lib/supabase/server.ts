@@ -1,7 +1,7 @@
 import {
   NEXT_PUBLIC_SUPABASE_ANON_KEY,
   NEXT_PUBLIC_SUPABASE_URL,
-} from "@lib/env";
+} from "@lib/env.server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies as cookiesPromise } from "next/headers";
 
@@ -19,8 +19,10 @@ export async function createClient() {
             cookiesToSet.forEach((cookie) => {
               cookieStore.set(cookie);
             });
-          } catch (error) {
-            console.error("Error setting cookies:", error);
+          } catch {
+            // Headers already sent (e.g. called from a Server Component render path).
+            // Session will still work for the current request; the cookie will be
+            // re-set on the next mutable response. This is expected Supabase SSR behavior.
           }
         },
       },

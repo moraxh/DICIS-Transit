@@ -1,4 +1,4 @@
-import { NEXT_PUBLIC_MAPBOX_TOKEN } from "@lib/env";
+import { NEXT_PUBLIC_MAPBOX_TOKEN } from "@lib/env.client";
 import type { RouteData } from "@providers/map-provider";
 import { useEffect, useState } from "react";
 
@@ -57,7 +57,10 @@ async function fetchRoadPath(route: RouteData): Promise<[number, number][]> {
     return coordinates;
   }
 
-  return [];
+  // Mapbox returned no route (e.g. unreachable waypoints). Throw so the catch
+  // branch handles retry counting — returning [] silently would cause an infinite
+  // fetch loop since the .then branch would never mark the key as done.
+  throw new Error(`Mapbox returned no route for route ${route.id} (code: ${data.code ?? "unknown"})`);
 }
 
 export function useRouteRoadPath(route: RouteData): [number, number][] {
@@ -83,6 +86,11 @@ export function useRouteRoadPath(route: RouteData): [number, number][] {
       }
     }
 
+    // Exhausted retries — stop trying
+    if (state && state.count >= MAX_RETRIES) {
+      return;
+    }
+
     let promise = inFlight.get(key);
     if (!promise) {
       promise = fetchRoadPath(route).finally(() => inFlight.delete(key));
@@ -91,7 +99,7 @@ export function useRouteRoadPath(route: RouteData): [number, number][] {
 
     promise
       .then((coords) => {
-        if (!cancelled && coords.length > 0) {
+        if (!cancelled) {
           retryState.delete(key);
           setPath(coords);
         }

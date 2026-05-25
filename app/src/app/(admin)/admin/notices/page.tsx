@@ -47,10 +47,14 @@ export default function AdminNoticesPage() {
   });
 
   const load = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("notices")
       .select("id,title,content,priority,created_at,expires_at")
       .order("created_at", { ascending: false });
+    if (error) {
+      console.error("Failed to load notices:", error);
+      toast.error("Error al cargar avisos");
+    }
     if (data) setNotices(data);
     setIsLoading(false);
   }, []);
@@ -206,6 +210,7 @@ export default function AdminNoticesPage() {
                     setForm((f) => ({ ...f, title: e.target.value }))
                   }
                   placeholder="Título del aviso"
+                  maxLength={120}
                   className="bg-zinc-950 border-zinc-800 text-white"
                 />
               </div>
@@ -225,6 +230,7 @@ export default function AdminNoticesPage() {
                   }
                   placeholder="Descripción del aviso…"
                   rows={3}
+                  maxLength={1000}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 resize-none outline-none focus:border-zinc-600 transition-colors"
                 />
               </div>

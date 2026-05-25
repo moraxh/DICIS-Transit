@@ -3,10 +3,10 @@ import { cookies } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 
 const allowedPaths = [
-  "/login",
   "/admin/login",
   "/unauthorized",
-  "/api/auth/login",
+  "/api/auth/login/student",
+  "/api/auth/login/admin",
 ];
 
 const adminPaths = ["/admin"];
