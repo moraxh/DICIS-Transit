@@ -146,6 +146,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [thumbmark, getCurrentUser]);
 
+  // Keep credibility score in sync: it's derived from report history server-side,
+  // so it can change mid-session without a re-login.
+  useEffect(() => {
+    if (!userData?.id) return;
+    const channel = supabase
+      .channel(`user-credibility-${userData.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "users",
+          filter: `id=eq.${userData.id}`,
+        },
+        (payload) => {
+          const next = (payload.new as { credibility_score?: number })
+            .credibility_score;
+          if (typeof next === "number") setCredibilityScore(next);
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userData?.id]);
+
   return (
     <AuthContext.Provider
       value={{ visitorId, userType, isLoading, userData, credibilityScore }}

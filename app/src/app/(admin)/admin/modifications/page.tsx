@@ -1,305 +1,177 @@
 "use client";
 
-import { Badge } from "@components/ui/badge";
+import { RouteEditorSheet } from "@components/admin/route-editor/route-editor-sheet";
+import { StatusBadge } from "@components/admin/status-badge";
 import { Button } from "@components/ui/button";
-import { Input } from "@components/ui/input";
-import { supabase } from "@lib/supabase/client";
-import { useAuth } from "@providers/auth-provider";
-import { CheckCircle2, Loader2, Plus, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useActiveRoutes } from "@hooks/admin/use-active-routes";
+import { useRouteOverrides } from "@hooks/admin/use-route-overrides";
+import type { RouteOverride } from "@hooks/admin/use-route-overrides";
+import { useRoutePoints } from "@hooks/admin/use-route-points";
+import type { RouteData } from "@providers/map-provider";
+import { AnimatePresence, motion } from "motion/react";
+import { Loader2, Map, Route } from "lucide-react";
+import { useCallback, useState } from "react";
 
-interface RouteOption {
-  id: string;
-  name: string;
-}
+function RouteEditorLauncher({
+  routeId,
+  routeName,
+  existingOverride,
+  onClose,
+}: {
+  routeId: string;
+  routeName: string;
+  existingOverride: RouteOverride | null;
+  onClose: () => void;
+}) {
+  const { data: points = [], isLoading } = useRoutePoints(routeId);
 
-interface Modification {
-  id: string;
-  route_id: string | null;
-  description: string;
-  status: "active" | "resolved";
-  valid_from: string;
-  valid_to: string | null;
-  created_at: string;
-}
-
-export default function AdminModificationsPage() {
-  const { userData } = useAuth();
-  const [modifications, setModifications] = useState<Modification[]>([]);
-  const [routes, setRoutes] = useState<RouteOption[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    route_id: "",
-    description: "",
-    valid_from: new Date().toISOString().split("T")[0],
-    valid_to: "",
-  });
-
-  const load = useCallback(async () => {
-    const [modsRes, routesRes] = await Promise.all([
-      supabase
-        .from("route_modifications")
-        .select("id,route_id,description,status,valid_from,valid_to,created_at")
-        .order("created_at", { ascending: false }),
-      supabase.from("routes").select("id, name").eq("is_active", true),
-    ]);
-    if (modsRes.error) {
-      console.error("Failed to load modifications:", modsRes.error);
-      toast.error("Error al cargar modificaciones");
-    }
-    if (modsRes.data) setModifications(modsRes.data);
-    if (routesRes.data) setRoutes(routesRes.data);
-    setIsLoading(false);
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  async function handleCreate() {
-    if (!form.description || !userData) return;
-    setSaving(true);
-
-    const payload: Record<string, string | null> = {
-      description: form.description,
-      valid_from: new Date(form.valid_from).toISOString(),
-      status: "active",
-      route_id: form.route_id || null,
-      valid_to: form.valid_to ? new Date(form.valid_to).toISOString() : null,
-      admin_id: userData.id,
-    };
-
-    const { error } = await supabase
-      .from("route_modifications")
-      .insert(payload);
-    setSaving(false);
-
-    if (error) {
-      toast.error("Error al crear modificación");
-      return;
-    }
-
-    toast.success("Modificación creada");
-    setShowModal(false);
-    setForm({
-      route_id: "",
-      description: "",
-      valid_from: new Date().toISOString().split("T")[0],
-      valid_to: "",
-    });
-    load();
-  }
-
-  async function handleResolve(id: string) {
-    const { error } = await supabase
-      .from("route_modifications")
-      .update({ status: "resolved", admin_id: userData?.id ?? null })
-      .eq("id", id);
-
-    if (error) {
-      toast.error("Error al actualizar");
-      return;
-    }
-
-    toast.success("Marcada como resuelta");
-    setModifications((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, status: "resolved" } : m)),
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950">
+        <Loader2 className="size-6 animate-spin text-zinc-500" />
+      </div>
     );
   }
 
-  const routeName = (id: string | null) =>
-    routes.find((r) => r.id === id)?.name ?? "Sin ruta específica";
+  const routeData: RouteData = {
+    id: routeId,
+    name: routeName,
+    isActive: true,
+    direction: "to_dicis",
+    scheduleType: "weekday",
+    points: points as RouteData["points"],
+    schedules: [],
+  };
 
   return (
-    <div className="p-8 flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-white">
-            Modificaciones de Ruta
-          </h1>
-          <p className="text-sm text-zinc-500 mt-0.5">
-            Cambios temporales al servicio
-          </p>
-        </div>
-        <Button
-          onClick={() => setShowModal(true)}
-          className="bg-white text-black hover:bg-zinc-200 font-semibold gap-2"
-        >
-          <Plus size={15} />
-          Nueva modificación
-        </Button>
-      </div>
+    <RouteEditorSheet
+      route={routeData}
+      existingOverride={existingOverride}
+      onClose={onClose}
+    />
+  );
+}
 
-      {isLoading ? (
-        <div className="flex flex-col gap-3">
-          {[1, 2].map((i) => (
-            <div key={i} className="h-20 rounded-xl bg-white/5 animate-pulse" />
-          ))}
-        </div>
-      ) : modifications.length === 0 ? (
-        <p className="text-sm text-zinc-500">Sin modificaciones</p>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {modifications.map((mod) => (
-            <div
-              key={mod.id}
-              className={`rounded-xl border p-4 flex items-start gap-3 transition-opacity ${
-                mod.status === "resolved"
-                  ? "border-zinc-800/40 bg-zinc-900/20 opacity-50"
-                  : "border-orange-500/20 bg-orange-500/8"
-              }`}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs text-zinc-500">
-                    {routeName(mod.route_id)}
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className={`font-normal ${
-                      mod.status === "active"
-                        ? "text-orange-400 border-orange-500/30 bg-orange-500/10"
-                        : "text-zinc-500 border-zinc-700"
-                    }`}
-                  >
-                    {mod.status === "active" ? "Activa" : "Resuelta"}
-                  </Badge>
-                </div>
-                <p className="text-sm text-zinc-300 leading-relaxed">
-                  {mod.description}
-                </p>
-                {mod.valid_to && (
-                  <p className="text-[10px] text-zinc-600 mt-1">
-                    Hasta: {new Date(mod.valid_to).toLocaleDateString("es-MX")}
-                  </p>
-                )}
-              </div>
-              {mod.status === "active" && (
-                <button
-                  type="button"
-                  onClick={() => handleResolve(mod.id)}
-                  className="text-zinc-500 hover:text-emerald-400 transition-colors shrink-0 mt-0.5"
-                  title="Marcar como resuelta"
-                >
-                  <CheckCircle2 size={16} />
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
+const routeRowVariants = {
+  hidden: { opacity: 0, x: -8 },
+  visible: { opacity: 1, x: 0 },
+};
+
+export default function AdminModificationsPage() {
+  const [editorRoute, setEditorRoute] = useState<{ id: string; name: string } | null>(null);
+
+  const { data: routes = [] } = useActiveRoutes();
+  const { data: overrides = [] } = useRouteOverrides();
+
+  const getActiveOverride = useCallback(
+    (routeId: string): RouteOverride | null => {
+      const now = new Date();
+      return (
+        overrides.find(
+          (o) =>
+            o.route_id === routeId &&
+            o.status === "active" &&
+            new Date(o.valid_from) <= now &&
+            (!o.valid_to || new Date(o.valid_to) > now),
+        ) ?? null
+      );
+    },
+    [overrides],
+  );
+
+  const deviatedCount = routes.filter((r) => getActiveOverride(r.id) !== null).length;
+
+  return (
+    <>
+      {editorRoute && (
+        <RouteEditorLauncher
+          routeId={editorRoute.id}
+          routeName={editorRoute.name}
+          existingOverride={getActiveOverride(editorRoute.id)}
+          onClose={() => setEditorRoute(null)}
+        />
       )}
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-md flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-white">
-                Nueva modificación
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="text-zinc-500 hover:text-white"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="mod-route" className="text-xs text-zinc-400">
-                  Ruta (opcional)
-                </label>
-                <select
-                  id="mod-route"
-                  value={form.route_id}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, route_id: e.target.value }))
-                  }
-                  className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-zinc-600 transition-colors"
-                >
-                  <option value="">Todas las rutas</option>
-                  {routes.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label
-                  htmlFor="mod-description"
-                  className="text-xs text-zinc-400"
-                >
-                  Descripción
-                </label>
-                <textarea
-                  id="mod-description"
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, description: e.target.value }))
-                  }
-                  placeholder="Describe la modificación…"
-                  rows={3}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 resize-none outline-none focus:border-zinc-600 transition-colors"
-                />
-              </div>
-
-              <div className="flex gap-3">
-                <div className="flex flex-col gap-1.5 flex-1">
-                  <label
-                    htmlFor="mod-valid-from"
-                    className="text-xs text-zinc-400"
-                  >
-                    Desde
-                  </label>
-                  <Input
-                    id="mod-valid-from"
-                    type="date"
-                    value={form.valid_from}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, valid_from: e.target.value }))
-                    }
-                    className="bg-zinc-950 border-zinc-800 text-white"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5 flex-1">
-                  <label
-                    htmlFor="mod-valid-to"
-                    className="text-xs text-zinc-400"
-                  >
-                    Hasta (opcional)
-                  </label>
-                  <Input
-                    id="mod-valid-to"
-                    type="date"
-                    value={form.valid_to}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, valid_to: e.target.value }))
-                    }
-                    className="bg-zinc-950 border-zinc-800 text-white"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <Button
-              onClick={handleCreate}
-              disabled={saving || !form.description}
-              className="w-full bg-white text-black hover:bg-zinc-200 font-semibold"
-            >
-              {saving ? (
-                <Loader2 size={14} className="animate-spin mr-2" />
-              ) : null}
-              Crear modificación
-            </Button>
+      <motion.div
+        className="p-6 flex flex-col gap-6"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-lg font-bold text-white">
+              Modificaciones de Ruta
+            </h1>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              {deviatedCount > 0 ? (
+                <span className="text-yellow-600">
+                  {deviatedCount} ruta{deviatedCount > 1 ? "s" : ""} desviada{deviatedCount > 1 ? "s" : ""}
+                </span>
+              ) : (
+                <span className="text-zinc-600">Sin desvíos activos</span>
+              )}
+            </p>
           </div>
         </div>
-      )}
-    </div>
+
+        {/* Route map editor section */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+            <p className="text-xs text-zinc-400 uppercase tracking-widest font-semibold">
+              Editor de rutas en mapa
+            </p>
+          </div>
+
+          {routes.length === 0 ? (
+            <div className="rounded-xl border border-zinc-800/40 bg-zinc-900/20 py-8 flex flex-col items-center gap-2">
+              <Route size={18} className="text-zinc-700" />
+              <p className="text-xs text-zinc-600">Sin rutas activas</p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-zinc-800/60 overflow-hidden bg-zinc-900/20">
+              <AnimatePresence>
+                {routes.map((route, i) => {
+                  const override = getActiveOverride(route.id);
+                  return (
+                    <motion.div
+                      key={route.id}
+                      variants={routeRowVariants}
+                      initial="hidden"
+                      animate="visible"
+                      transition={{ duration: 0.25, delay: i * 0.04 }}
+                      className="flex items-center justify-between px-4 py-3 border-b border-zinc-800/40 last:border-0 hover:bg-white/[0.02] transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${override ? "bg-yellow-500" : "bg-zinc-700"}`} />
+                        <span className="truncate text-sm font-medium text-zinc-200">
+                          {route.name}
+                        </span>
+                        {override && (
+                          <StatusBadge variant="warning">Desviada</StatusBadge>
+                        )}
+                      </div>
+                      <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 border-zinc-800 text-xs text-zinc-400 hover:border-zinc-600 hover:text-white hover:bg-white/5 shrink-0 transition-all"
+                          onClick={() => setEditorRoute({ id: route.id, name: route.name })}
+                        >
+                          <Map className="size-3" />
+                          {override ? "Editar desvío" : "Editar en mapa"}
+                        </Button>
+                      </motion.div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </>
   );
 }

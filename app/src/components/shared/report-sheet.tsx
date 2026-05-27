@@ -114,7 +114,11 @@ export default function ReportSheet({ open, onOpenChange }: ReportSheetProps) {
     setIsSubmitting(false);
 
     if (error) {
-      toast.error("Error al enviar reporte. Intenta de nuevo.");
+      if (error.code === "23505") {
+        toast.error("Ya reportaste esto hace poco. Espera unos minutos.");
+      } else {
+        toast.error("Error al enviar reporte. Intenta de nuevo.");
+      }
       return;
     }
 

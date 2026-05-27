@@ -61,14 +61,30 @@ interface Notice {
   title: string;
   content: string;
   priority: "urgent" | "high" | "medium" | "low";
+  category: "delay" | "detour" | "cancellation" | "schedule_change" | "incident" | "info" | "maintenance";
+  affected_route_ids: string[];
+  start_at: string | null;
   created_at: string;
   expires_at: string | null;
 }
 
-interface RouteModification {
+interface RouteTemporaryOverridePoint {
+  stop_id: string | null;
+  point_role: "start" | "stop" | "waypoint" | "end";
+  stop_order: number;
+  stop_name: string;
+  latitude: number;
+  longitude: number;
+  active: boolean;
+  time_from_previous_mins: number;
+  cumulative_minutes?: number;
+}
+
+interface RouteTemporaryOverride {
   id: string;
   route_id: string;
-  description: string;
+  points: RouteTemporaryOverridePoint[];
+  cached_geometry: [number, number][] | null;
   status: "active" | "resolved";
   valid_from: string;
   valid_to: string | null;
@@ -90,7 +106,7 @@ interface MapContextType {
   directionFilter: DirectionFilter;
   setDirectionFilter: (v: DirectionFilter) => void;
   notices: Notice[];
-  modifications: RouteModification[];
+  temporaryOverrides: RouteTemporaryOverride[];
   alertsLoading: boolean;
 }
 
@@ -112,7 +128,7 @@ export function MapProvider({ children }: { children: ReactNode }) {
     useState<DirectionFilter>("Ida");
 
   const [notices, setNotices] = useState<Notice[]>([]);
-  const [modifications, setModifications] = useState<RouteModification[]>([]);
+  const [temporaryOverrides, setTemporaryOverrides] = useState<RouteTemporaryOverride[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(true);
 
   const getDefaultRouteId = useCallback((parsedRoutes: RouteData[]) => {
@@ -226,18 +242,17 @@ export function MapProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, []);
 
-  // Load alerts (notices + route_modifications) — shared between HomeTab and AlertsTab
+  // Load alerts and active route overrides shared between HomeTab and AlertsTab.
   const loadAlerts = useCallback(async () => {
-    const [noticesRes, modsRes] = await Promise.all([
+    const [noticesRes, overridesRes] = await Promise.all([
       supabase
         .from("notices")
         .select("*")
         .or("expires_at.is.null,expires_at.gt.now()"),
       supabase
-        .from("route_modifications")
-        .select("*")
-        .eq("status", "active")
-        .order("created_at", { ascending: false }),
+        .from("route_temporary_overrides")
+        .select("id,route_id,points,cached_geometry,status,valid_from,valid_to")
+        .eq("status", "active"),
     ]);
 
     if (noticesRes.data) {
@@ -250,7 +265,15 @@ export function MapProvider({ children }: { children: ReactNode }) {
         ),
       );
     }
-    if (modsRes.data) setModifications(modsRes.data as RouteModification[]);
+    if (overridesRes.data) {
+      const now = new Date();
+      const active = (overridesRes.data as RouteTemporaryOverride[]).filter(
+        (o) =>
+          new Date(o.valid_from) <= now &&
+          (!o.valid_to || new Date(o.valid_to) > now),
+      );
+      setTemporaryOverrides(active);
+    }
     setAlertsLoading(false);
   }, []);
 
@@ -276,7 +299,7 @@ export function MapProvider({ children }: { children: ReactNode }) {
         directionFilter,
         setDirectionFilter,
         notices,
-        modifications,
+        temporaryOverrides,
         alertsLoading,
       }}
     >
@@ -299,6 +322,7 @@ export type {
   RouteSchedule,
   ReportCount,
   Notice,
-  RouteModification,
+  RouteTemporaryOverride,
+  RouteTemporaryOverridePoint,
 };
 export type { ScheduleFilter, DirectionFilter };

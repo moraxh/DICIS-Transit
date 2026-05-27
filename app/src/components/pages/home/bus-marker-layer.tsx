@@ -13,11 +13,12 @@ import {
   formatTime,
   getActiveBuses,
   getMexicoCurrentMins,
+  parseTimeToMinutes,
 } from "@lib/schedule-utils";
 import type { RouteData } from "@providers/map-provider";
 import { BusFront } from "lucide-react";
 import type MapLibreGL from "maplibre-gl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 interface BusState {
   position: Coord;
@@ -110,7 +111,7 @@ function computeTarget(
   };
 }
 
-function BusMarker({
+const BusMarker = memo(function BusMarker({
   route,
   departureTime,
   departureTimeMins,
@@ -269,7 +270,7 @@ function BusMarker({
       </MarkerTooltip>
     </MapMarker>
   );
-}
+});
 
 export default function BusMarkerLayer({ route }: { route: RouteData }) {
   const roadPath = useRouteGeometry(route);
@@ -294,13 +295,12 @@ export default function BusMarkerLayer({ route }: { route: RouteData }) {
   return (
     <>
       {buses.map((bus, index) => {
-        const [hours, minutes] = bus.departureTime.split(":").map(Number);
         return (
           <BusMarker
             key={`bus-${route.id}-${bus.departureTime}`}
             route={route}
             departureTime={bus.departureTime}
-            departureTimeMins={hours * 60 + minutes}
+            departureTimeMins={parseTimeToMinutes(bus.departureTime)}
             minutesUntilEnd={bus.minutesUntilEnd}
             namedPoints={namedPoints}
             roadPath={roadPath}

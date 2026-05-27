@@ -23,11 +23,12 @@ export default function MapResizeHandler() {
     };
 
     const timer = window.setTimeout(scheduleResize, 250);
-    const handleTransitionEvent = (event: TransitionEvent) => {
+    const handleTransitionEvent = (event: Event) => {
+      const te = event as TransitionEvent;
       if (
-        event.propertyName !== "width" &&
-        event.propertyName !== "left" &&
-        event.propertyName !== "right"
+        te.propertyName !== "width" &&
+        te.propertyName !== "left" &&
+        te.propertyName !== "right"
       ) {
         return;
       }

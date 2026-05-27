@@ -1,215 +1,391 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
+import { ActivityFeed } from "@components/admin/activity-feed";
+import { AlertBar } from "@components/admin/alert-bar";
+import { DatePicker } from "@components/admin/date-picker";
+import { KPICard } from "@components/admin/kpi-card";
+import { LiveIndicator } from "@components/admin/live-indicator";
+import { QuickActions } from "@components/admin/quick-actions";
+import { RouteHealthPanel } from "@components/admin/route-health-panel";
+import { SectionHeader } from "@components/admin/section-header";
+import { Button } from "@components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@components/ui/table";
-import { supabase } from "@lib/supabase/client";
-import { Bus, Megaphone, Route, TriangleAlert } from "lucide-react";
-import { useEffect, useState } from "react";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@components/ui/dialog";
+import { Input } from "@components/ui/input";
+import { Label } from "@components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@components/ui/select";
+import { Textarea } from "@components/ui/textarea";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  buildAlerts,
+  useDashboardKPIs,
+  useRecentReports,
+  useRouteHealth,
+} from "@hooks/admin/use-dashboard-data";
+import { useCreateNotice } from "@hooks/admin/use-notices";
+import type { Notice, NoticePayload } from "@hooks/admin/use-notices";
+import { useAuth } from "@providers/auth-provider";
+import { useRealtimeCtx } from "@providers/realtime-provider";
+import { useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import {
+  AlertTriangle,
+  Bus,
+  CheckCircle2,
+  Loader2,
+  Map,
+  Megaphone,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { z } from "zod";
 
-interface DashboardCounts {
-  activeRoutes: number;
-  activeNotices: number;
-  activeModifications: number;
-  recentReports: number;
-}
+const noticeSchema = z.object({
+  title: z.string().min(3, "Mínimo 3 caracteres").max(120, "Máximo 120 caracteres"),
+  content: z.string().min(10, "Mínimo 10 caracteres").max(1000, "Máximo 1000 caracteres"),
+  priority: z.enum(["low", "medium", "high", "urgent"]),
+  expires_at: z.date().optional(),
+});
 
-interface RecentReport {
-  id: string;
-  report_type: string;
-  created_at: string;
-  route_id: string | null;
-}
+type NoticeFormValues = z.infer<typeof noticeSchema>;
 
-const typeLabels: Record<string, string> = {
-  did_not_pass: "No pasó",
-  full_bus: "Venía lleno",
-  early: "Se adelantó",
-  delay: "Se tardó",
-};
+const priorityOptions: { value: Notice["priority"]; label: string }[] = [
+  { value: "low", label: "Bajo" },
+  { value: "medium", label: "Medio" },
+  { value: "high", label: "Alto" },
+  { value: "urgent", label: "Urgente" },
+];
 
-export default function AdminDashboardPage() {
-  const [counts, setCounts] = useState<DashboardCounts | null>(null);
-  const [recentReports, setRecentReports] = useState<RecentReport[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function load() {
-      const yesterday = new Date(
-        Date.now() - 24 * 60 * 60 * 1000,
-      ).toISOString();
-
-      const [routesRes, noticesRes, modsRes, reportsCountRes, reportsRes] =
-        await Promise.all([
-          supabase
-            .from("routes")
-            .select("id", { count: "exact" })
-            .eq("is_active", true),
-          supabase
-            .from("notices")
-            .select("id", { count: "exact" })
-            .or("expires_at.is.null,expires_at.gt.now()"),
-          supabase
-            .from("route_modifications")
-            .select("id", { count: "exact" })
-            .eq("status", "active"),
-          supabase
-            .from("reports")
-            .select("id", { count: "exact" })
-            .gte("created_at", yesterday),
-          supabase
-            .from("reports")
-            .select("id, report_type, created_at, route_id")
-            .order("created_at", { ascending: false })
-            .limit(5),
-        ]);
-
-      const firstError = routesRes.error ?? noticesRes.error ?? modsRes.error ?? reportsCountRes.error ?? reportsRes.error;
-      if (firstError) {
-        console.error("Dashboard load error:", firstError);
-        setError("Error al cargar datos del dashboard");
-        setIsLoading(false);
-        return;
-      }
-
-      setCounts({
-        activeRoutes: routesRes.count ?? 0,
-        activeNotices: noticesRes.count ?? 0,
-        activeModifications: modsRes.count ?? 0,
-        recentReports: reportsCountRes.count ?? 0,
-      });
-
-      if (reportsRes.data) setRecentReports(reportsRes.data);
-      setIsLoading(false);
-    }
-
-    load();
-  }, []);
-
-  if (isLoading) {
-    return (
-      <div className="p-8 flex flex-col gap-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-24 rounded-xl bg-white/5 animate-pulse" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-8">
-        <p className="text-sm text-red-400">{error}</p>
-      </div>
-    );
-  }
-
-  const cards = [
-    {
-      label: "Rutas activas",
-      value: counts?.activeRoutes ?? 0,
-      icon: Bus,
-      color: "text-emerald-400",
-      bg: "bg-emerald-500/10",
-    },
-    {
-      label: "Avisos activos",
-      value: counts?.activeNotices ?? 0,
-      icon: Megaphone,
-      color: "text-orange-400",
-      bg: "bg-orange-500/10",
-    },
-    {
-      label: "Modificaciones",
-      value: counts?.activeModifications ?? 0,
-      icon: Route,
-      color: "text-blue-400",
-      bg: "bg-blue-500/10",
-    },
-    {
-      label: "Reportes (24h)",
-      value: counts?.recentReports ?? 0,
-      icon: TriangleAlert,
-      color: "text-red-400",
-      bg: "bg-red-500/10",
-    },
-  ];
+function NoticeForm({
+  onSubmit,
+  isPending,
+}: {
+  onSubmit: (v: NoticeFormValues) => void;
+  isPending: boolean;
+}) {
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    formState: { errors },
+  } = useForm<NoticeFormValues>({
+    resolver: zodResolver(noticeSchema),
+    defaultValues: { priority: "medium" },
+  });
+  const content = watch("content") ?? "";
 
   return (
-    <div className="p-8 flex flex-col gap-8">
-      <div>
-        <h1 className="text-xl font-semibold text-white">Dashboard</h1>
-        <p className="text-sm text-zinc-500 mt-0.5">Resumen del sistema</p>
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 px-5 pb-5">
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="qa-notice-title" className="text-xs text-zinc-500 font-medium">
+          Título
+        </Label>
+        <Input
+          id="qa-notice-title"
+          placeholder="Título del aviso"
+          aria-invalid={!!errors.title}
+          {...register("title")}
+        />
+        {errors.title && <p className="text-[11px] text-destructive">{errors.title.message}</p>}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {cards.map(({ label, value, icon: Icon, color, bg }) => (
-          <Card key={label} className="bg-zinc-900/50 border-zinc-800">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-zinc-500">
-                {label}
-              </CardTitle>
-              <div
-                className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center`}
-              >
-                <Icon size={16} className={color} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">{value}</div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="qa-notice-content" className="text-xs text-zinc-500 font-medium">
+          Contenido
+        </Label>
+        <Textarea
+          id="qa-notice-content"
+          placeholder="Descripción del aviso…"
+          rows={3}
+          aria-invalid={!!errors.content}
+          {...register("content")}
+        />
+        <div className="flex items-center justify-end gap-2">
+          {errors.content && (
+            <p className="text-[11px] text-destructive flex-1">{errors.content.message}</p>
+          )}
+          <p className="text-[10px] text-zinc-600 ml-auto">{content.length}/1000</p>
+        </div>
       </div>
 
-      {recentReports.length > 0 && (
-        <div>
-          <h2 className="text-sm font-semibold text-zinc-300 mb-3">
-            Últimos reportes
-          </h2>
-          <div className="rounded-xl border border-zinc-800 overflow-hidden bg-zinc-900/30">
-            <Table>
-              <TableHeader className="bg-zinc-900/50">
-                <TableRow className="border-zinc-800 hover:bg-transparent">
-                  <TableHead className="text-zinc-400">Tipo</TableHead>
-                  <TableHead className="text-zinc-400 text-right">
-                    Fecha
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentReports.map((report) => (
-                  <TableRow
-                    key={report.id}
-                    className="border-zinc-800/60 hover:bg-white/2"
-                  >
-                    <TableCell className="text-zinc-400">
-                      {typeLabels[report.report_type] ?? report.report_type}
-                    </TableCell>
-                    <TableCell className="text-xs text-zinc-600 text-right">
-                      {new Date(report.created_at).toLocaleString("es-MX", {
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+      <div className="flex gap-3">
+        <div className="flex flex-col gap-1.5 flex-1">
+          <Label className="text-xs text-zinc-500 font-medium">Prioridad</Label>
+          <Controller
+            name="priority"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {priorityOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5 flex-1">
+          <Label className="text-xs text-zinc-500 font-medium">Expira (opcional)</Label>
+          <Controller
+            name="expires_at"
+            control={control}
+            render={({ field }) => (
+              <DatePicker
+                value={field.value}
+                onChange={field.onChange}
+                placeholder="Sin fecha"
+                fromDate={new Date()}
+              />
+            )}
+          />
+        </div>
+      </div>
+
+      <Button type="submit" disabled={isPending} className="w-full">
+        {isPending && <Loader2 size={14} className="animate-spin mr-2" />}
+        Crear aviso
+      </Button>
+    </form>
+  );
+}
+
+export default function AdminDashboardPage() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { userData } = useAuth();
+  const { isLive, newCount, clearNewCount } = useRealtimeCtx();
+  const [lastUpdated, setLastUpdated] = useState<Date | undefined>(undefined);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [noticeOpen, setNoticeOpen] = useState(false);
+
+  const { data: kpis, isLoading: kpisLoading } = useDashboardKPIs();
+  const { data: recentReports = [], isLoading: reportsLoading } = useRecentReports();
+  const { data: routeHealth = [], isLoading: healthLoading } = useRouteHealth();
+  const createNotice = useCreateNotice();
+
+  const alerts = useMemo(() => buildAlerts(kpis, routeHealth), [kpis, routeHealth]);
+
+  const routes = useMemo(
+    () => Object.fromEntries(routeHealth.map((route) => [route.id, route.name])),
+    [routeHealth],
+  );
+
+  const prevKpisRef = useRef(kpis);
+  useEffect(() => {
+    if (kpis !== undefined && kpis !== prevKpisRef.current) {
+      setLastUpdated(new Date());
+      prevKpisRef.current = kpis;
+    }
+  }, [kpis]);
+
+  async function handleRefresh() {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ["admin"] });
+    setLastUpdated(new Date());
+    setIsRefreshing(false);
+  }
+
+  function handleCreateNotice(values: NoticeFormValues) {
+    if (!userData) return;
+
+    const payload: NoticePayload = {
+      title: values.title,
+      content: values.content,
+      priority: values.priority,
+      category: "info",
+      affected_route_ids: [],
+      admin_id: userData.id,
+    };
+
+    if (values.expires_at) payload.expires_at = values.expires_at.toISOString();
+    createNotice.mutate(payload, { onSuccess: () => setNoticeOpen(false) });
+  }
+
+  const systemStatus =
+    alerts.some((alert) => alert.severity === "critical")
+      ? "critical"
+      : alerts.some((alert) => alert.severity === "warning")
+        ? "warning"
+        : "ok";
+
+  const statusConfig = {
+    ok: {
+      icon: CheckCircle2,
+      label: "Sistema operando normalmente",
+      color: "text-emerald-400",
+      dot: "bg-emerald-400",
+    },
+    warning: {
+      icon: AlertTriangle,
+      label: "Atención requerida",
+      color: "text-yellow-400",
+      dot: "bg-yellow-400 animate-pulse",
+    },
+    critical: {
+      icon: AlertTriangle,
+      label: "Incidentes activos",
+      color: "text-red-400",
+      dot: "bg-red-400 animate-pulse",
+    },
+  }[systemStatus];
+
+  const StatusIcon = statusConfig.icon;
+
+  return (
+    <div className="flex flex-col min-h-full">
+      <AlertBar alerts={alerts} />
+
+      <div className="flex-1 p-6 flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold text-white leading-none">Dashboard</h1>
+            <p className="text-xs text-zinc-500 mt-1.5 capitalize">
+              {format(new Date(), "EEEE d 'de' MMMM, yyyy", { locale: es })}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className={`flex items-center gap-1.5 text-xs font-medium ${statusConfig.color}`}>
+              <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${statusConfig.dot}`} />
+              {statusConfig.label}
+            </div>
+            <div className="w-px h-4 bg-zinc-800" />
+            <LiveIndicator
+              isLive={isLive}
+              lastUpdated={lastUpdated}
+              onRefresh={handleRefresh}
+              isRefreshing={isRefreshing}
+            />
           </div>
         </div>
-      )}
+
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+          <KPICard
+            label="Reportes hoy"
+            value={kpisLoading ? "—" : (kpis?.reportsToday ?? 0)}
+            icon={AlertTriangle}
+            iconColor="text-red-400"
+            iconBg="bg-red-500/10"
+            href="/admin/reports"
+            highlight={(kpis?.pendingReports ?? 0) >= 10}
+            delta={kpis?.reportsTodayDelta ?? null}
+            deltaLabel="vs ayer"
+            badge={
+              (kpis?.pendingReports ?? 0) > 0 ? (
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-red-500/15 text-red-400 border border-red-500/20">
+                  {kpis?.pendingReports} pendientes
+                </span>
+              ) : undefined
+            }
+          />
+          <KPICard
+            label="Rutas activas"
+            value={kpisLoading ? "—" : (kpis?.activeRoutes ?? 0)}
+            icon={Bus}
+            iconColor="text-emerald-400"
+            iconBg="bg-emerald-500/10"
+          />
+          <KPICard
+            label="Avisos activos"
+            value={kpisLoading ? "—" : (kpis?.activeNotices ?? 0)}
+            icon={Megaphone}
+            iconColor="text-orange-400"
+            iconBg="bg-orange-500/10"
+            href="/admin/notices"
+            badge={
+              (kpis?.expiringNotices ?? 0) > 0 ? (
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-yellow-500/15 text-yellow-400 border border-yellow-500/20">
+                  {kpis?.expiringNotices} expira
+                </span>
+              ) : undefined
+            }
+          />
+          <KPICard
+            label="Desvíos activos"
+            value={kpisLoading ? "—" : (kpis?.activeOverrides ?? 0)}
+            icon={Map}
+            iconColor="text-blue-400"
+            iconBg="bg-blue-500/10"
+            href="/admin/modifications"
+            badge={
+              (kpis?.expiringOverrides ?? 0) > 0 ? (
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-yellow-500/15 text-yellow-400 border border-yellow-500/20">
+                  {kpis?.expiringOverrides} expira
+                </span>
+              ) : undefined
+            }
+          />
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 flex-1">
+          <div className="xl:col-span-2 rounded-xl border border-zinc-800/60 bg-zinc-900/30 flex flex-col">
+            <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-zinc-800/60">
+              <SectionHeader>Actividad reciente</SectionHeader>
+              {newCount > 0 && (
+                <button
+                  type="button"
+                  onClick={clearNewCount}
+                  className="flex items-center gap-1.5 text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  {newCount} nuevo{newCount > 1 ? "s" : ""}
+                </button>
+              )}
+            </div>
+            <div className="flex-1 overflow-auto px-4 pb-2">
+              <ActivityFeed
+                reports={recentReports}
+                isLoading={reportsLoading}
+                routes={routes}
+                newCount={newCount}
+                onClearNew={clearNewCount}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-4">
+              <SectionHeader>Acciones rápidas</SectionHeader>
+              <QuickActions
+                onNewNotice={() => setNoticeOpen(true)}
+                onManageRoutes={() => router.push("/admin/modifications")}
+              />
+            </div>
+
+            <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-4 flex-1">
+              <SectionHeader>Estado de rutas</SectionHeader>
+              <RouteHealthPanel routes={routeHealth} isLoading={healthLoading} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Dialog open={noticeOpen} onOpenChange={setNoticeOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nuevo aviso</DialogTitle>
+          </DialogHeader>
+          <NoticeForm onSubmit={handleCreateNotice} isPending={createNotice.isPending} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

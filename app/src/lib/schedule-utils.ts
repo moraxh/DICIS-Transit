@@ -2,27 +2,27 @@ import type { RouteData, RouteSchedule } from "@providers/map-provider";
 
 const MEXICO_TZ = "America/Mexico_City";
 
-// Compute UTC offset for Mexico City once per session. Mexico City observes CDT
-// (UTC-5) in summer and CST (UTC-6) in winter. We derive the offset by comparing
-// a parsed local time string to the UTC epoch — avoids Intl.DateTimeFormat on
-// every tick while still respecting DST transitions at session boundaries.
-let _mxOffsetMs: number | null = null;
-function getMxOffsetMs(): number {
-  if (_mxOffsetMs !== null) return _mxOffsetMs;
-  const now = new Date();
-  const local = new Date(
-    now.toLocaleString("en-US", { timeZone: MEXICO_TZ }),
-  );
-  _mxOffsetMs = local.getTime() - now.getTime();
-  return _mxOffsetMs;
-}
+const mexicoTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: MEXICO_TZ,
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
 
 // All time comparisons use fractional minutes (including seconds) so the schedule
 // list and the bus position on the map agree on whether a departure has passed.
 function getMexicoMinutes(): number {
-  const mxMs = Date.now() + getMxOffsetMs();
-  const totalMs = mxMs % 86400000;
-  return totalMs / 60000;
+  const parts = mexicoTimeFormatter.formatToParts(new Date());
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
+  const minute = Number(
+    parts.find((part) => part.type === "minute")?.value ?? 0,
+  );
+  const second = Number(
+    parts.find((part) => part.type === "second")?.value ?? 0,
+  );
+
+  return hour * 60 + minute + second / 60;
 }
 
 export function getMexicoCurrentMins(): number {
@@ -55,9 +55,13 @@ export function formatTime(time24: string): string {
   return `${h12}:${m} ${ampm}`;
 }
 
+export function parseTimeToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
 export function getMinutesUntil(departureTime: string): number {
-  const [h, m] = departureTime.split(":").map(Number);
-  return h * 60 + m - getMexicoMinutes();
+  return parseTimeToMinutes(departureTime) - getMexicoMinutes();
 }
 
 export function formatMinutesRelative(minutes: number): string {
@@ -78,8 +82,8 @@ export function getNextScheduleIndex(
 ): number {
   const currentMinutes = getMexicoMinutes();
   for (let i = 0; i < schedules.length; i++) {
-    const [h, m] = schedules[i].departure_time.split(":").map(Number);
-    if (currentMinutes <= h * 60 + m) return i;
+    if (currentMinutes <= parseTimeToMinutes(schedules[i].departure_time))
+      return i;
   }
   return -1;
 }
@@ -122,8 +126,8 @@ export function getNextArrivalText(
   );
 
   for (const s of sorted) {
-    const [h, m] = s.departure_time.split(":").map(Number);
-    const arrivalMins = h * 60 + m + cumulativeMinutes;
+    const arrivalMins =
+      parseTimeToMinutes(s.departure_time) + cumulativeMinutes;
     if (arrivalMins >= 1440) continue;
     if (arrivalMins >= currentMins) {
       const hh = Math.floor(arrivalMins / 60) % 24;
@@ -158,8 +162,7 @@ export function getActiveBuses(route: RouteData): ActiveBus[] {
   const activeBuses: ActiveBus[] = [];
 
   for (const schedule of todaysSchedules) {
-    const [h, m] = schedule.departure_time.split(":").map(Number);
-    const departureMins = h * 60 + m;
+    const departureMins = parseTimeToMinutes(schedule.departure_time);
     const elapsedMins = currentMins - departureMins;
 
     if (elapsedMins < 0 || elapsedMins > totalMins) continue;
@@ -227,8 +230,7 @@ export function getUpcomingDepartures(
       s.days_active?.includes(today),
     );
     for (const s of todaySchedules) {
-      const [h, m] = s.departure_time.split(":").map(Number);
-      const depMins = h * 60 + m;
+      const depMins = parseTimeToMinutes(s.departure_time);
       const minutesUntil = depMins - currentMins;
       if (minutesUntil >= 0 && minutesUntil <= 120) {
         results.push({
@@ -256,8 +258,7 @@ export function getNextDeparture(routes: RouteData[]): NextDeparture | null {
 
   for (const route of routes) {
     for (const schedule of getTodaysSchedules(route)) {
-      const [h, m] = schedule.departure_time.split(":").map(Number);
-      const departureMins = h * 60 + m;
+      const departureMins = parseTimeToMinutes(schedule.departure_time);
       const minutesUntil = departureMins - currentMins;
 
       if (minutesUntil < 0) continue;
@@ -324,8 +325,8 @@ export function getNearestStopWithNextArrival(
   let minutesUntilArrival: number | null = null;
   let arrivalTime: string | null = null;
   for (const s of sorted) {
-    const [h, m] = s.departure_time.split(":").map(Number);
-    const arrivalMins = h * 60 + m + best.point.cumulative_minutes;
+    const arrivalMins =
+      parseTimeToMinutes(s.departure_time) + best.point.cumulative_minutes;
     if (arrivalMins >= currentMins) {
       minutesUntilArrival = arrivalMins - currentMins;
       const hh = Math.floor(arrivalMins / 60) % 24;

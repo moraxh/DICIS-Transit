@@ -131,7 +131,10 @@ export function useRouteGeometry(route: RouteData): [number, number][] {
     return () => {
       cancelled = true;
     };
-  }, [route, tick]);
+    // Keyed by route.id: geometry is cached per route id, so a new `route` object
+    // reference with the same id should not trigger a refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.id, tick]);
 
   return path;
 }

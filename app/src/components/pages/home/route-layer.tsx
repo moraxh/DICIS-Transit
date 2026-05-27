@@ -7,17 +7,23 @@ import {
 import { useRouteGeometry } from "@hooks/use-route-geometry";
 import { pointToLngLat, latLngPathToLngLatPath } from "@lib/map-coordinates";
 import { getNextArrivalText } from "@lib/schedule-utils";
-import type { RouteData } from "@providers/map-provider";
+import type {
+  RouteData,
+  RouteTemporaryOverride,
+  RouteTemporaryOverridePoint,
+} from "@providers/map-provider";
 import { useMapData } from "@providers/map-provider";
 import { Check, MapPin } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 function StopMarker({
   pointRole,
+  stopId,
   hasReports,
   totalReports,
 }: {
   pointRole: RouteData["points"][number]["point_role"];
+  stopId: string | null;
   hasReports: boolean;
   totalReports: number;
 }) {
@@ -45,6 +51,20 @@ function StopMarker({
     );
   }
 
+  // Temporary stop added by admin (no real stop_id)
+  if (stopId === null && pointRole === "stop") {
+    return (
+      <div className="relative">
+        <div className="rounded-full bg-amber-400 p-0.5 shadow-[0_0_0_2px_rgba(0,0,0,0.65),0_0_10px_rgba(251,191,36,0.4)]">
+          <MapPin
+            className="size-3.5 fill-amber-400 text-zinc-900"
+            strokeWidth={2.2}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative">
       {hasReports ? (
@@ -65,9 +85,11 @@ function StopMarker({
 export default function RouteLayer({
   route,
   isHighlight,
+  temporaryOverride,
 }: {
   route: RouteData;
   isHighlight: boolean;
+  temporaryOverride?: RouteTemporaryOverride | null;
 }) {
   const { reportCounts } = useMapData();
   const roadPath = useRouteGeometry(route);
@@ -83,19 +105,40 @@ export default function RouteLayer({
     return () => clearTimeout(timer);
   }, [isVisible]);
 
-  const path = useMemo(
-    () =>
-      roadPath.length > 0
-        ? latLngPathToLngLatPath(roadPath)
-        : route.points.map(pointToLngLat),
-    [roadPath, route.points],
-  );
+  // If a temporary override is active, derive path and displayed points from it.
+  const effectivePoints: (
+    | RouteData["points"][number]
+    | RouteTemporaryOverridePoint
+  )[] = useMemo(() => {
+    if (temporaryOverride) return temporaryOverride.points;
+    return route.points;
+  }, [temporaryOverride, route.points]);
+
+  const path = useMemo(() => {
+    if (temporaryOverride) {
+      // Use cached geometry if available, else fall back to active points straight lines.
+      if (
+        temporaryOverride.cached_geometry &&
+        temporaryOverride.cached_geometry.length >= 2
+      ) {
+        return latLngPathToLngLatPath(temporaryOverride.cached_geometry);
+      }
+      const activePoints = temporaryOverride.points.filter((p) => p.active);
+      return activePoints.map(
+        (p) => [p.longitude, p.latitude] as [number, number],
+      );
+    }
+    return roadPath.length > 0
+      ? latLngPathToLngLatPath(roadPath)
+      : route.points.map(pointToLngLat);
+  }, [temporaryOverride, roadPath, route.points]);
 
   if (!isVisible || path.length < 2) return null;
 
-  const stopsOnly = route.points.filter(
+  const visiblePoints = effectivePoints.filter(
     (point) => point.point_role !== "waypoint",
   );
+  const stopsOnly = visiblePoints;
   const stopIndexMap = new Map(
     stopsOnly.map((point, index) => [point.stop_id, index]),
   );
@@ -131,28 +174,38 @@ export default function RouteLayer({
         />
       )}
 
-      {route.points.map((point, index) => {
+      {effectivePoints.map((point, index) => {
         if (point.point_role === "waypoint") return null;
 
-        const stopReports = reportCounts.filter(
-          (report) =>
-            report.stop_id === point.stop_id && report.route_id === route.id,
-        );
+        // For override points: if inactive, show suspended marker but still render.
+        const isSuspended = "active" in point ? !point.active : false;
+        if (isSuspended && !isHighlight) return null;
+
+        const stopId = point.stop_id;
+        const stopReports = stopId
+          ? reportCounts.filter(
+              (report) =>
+                report.stop_id === stopId && report.route_id === route.id,
+            )
+          : [];
         const hasReports = stopReports.length > 0;
         const totalReports = stopReports.reduce(
           (sum, report) => sum + report.report_count,
           0,
         );
+
+        const cumulativeMinutes =
+          ("cumulative_minutes" in point ? point.cumulative_minutes : 0) ?? 0;
         const nextArrivalText = getNextArrivalText(
           route,
-          point.cumulative_minutes,
+          cumulativeMinutes,
           point.point_role === "start",
         );
-        const stopIndex = stopIndexMap.get(point.stop_id) ?? index;
+        const stopIndex = stopIndexMap.get(stopId) ?? index;
 
         return (
           <MapMarker
-            key={`${route.id}-${point.stop_id}-${index}`}
+            key={`${route.id}-${stopId ?? `${point.stop_order}-${point.latitude},${point.longitude}`}`}
             longitude={point.longitude}
             latitude={point.latitude}
           >
@@ -165,12 +218,19 @@ export default function RouteLayer({
                 }
                 style={{
                   animationDelay: `${Math.max(0, stopIndex * 0.1)}s`,
-                  opacity: isHighlight ? 0 : 1,
+                  opacity: isHighlight
+                    ? isSuspended
+                      ? 0.3
+                      : 0
+                    : isSuspended
+                      ? 0.35
+                      : 1,
                   transform: isHighlight ? "scale(0.5)" : undefined,
                 }}
               >
                 <StopMarker
                   pointRole={point.point_role}
+                  stopId={point.stop_id ?? null}
                   hasReports={hasReports}
                   totalReports={totalReports}
                 />
@@ -190,12 +250,19 @@ export default function RouteLayer({
                       Destino final
                     </span>
                   ) : null}
-                  <span className="text-[13px] leading-tight font-bold">
+                  <span
+                    className={`text-[13px] leading-tight font-bold ${isSuspended ? "line-through text-zinc-500" : ""}`}
+                  >
                     {point.stop_name}
                   </span>
-                  {point.cumulative_minutes > 0 ? (
+                  {isSuspended && (
+                    <span className="text-[10px] font-medium text-yellow-500">
+                      Temporalmente suspendida
+                    </span>
+                  )}
+                  {cumulativeMinutes > 0 && !isSuspended ? (
                     <span className="text-xs font-medium text-zinc-600">
-                      +{point.cumulative_minutes} min desde inicio
+                      +{cumulativeMinutes} min desde inicio
                     </span>
                   ) : null}
                   <div className="my-0.5 w-full border-t border-zinc-800" />

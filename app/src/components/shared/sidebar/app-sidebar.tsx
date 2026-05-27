@@ -40,6 +40,11 @@ const iconVariants = {
   hover: { y: -2, rotate: 4 },
 };
 
+const authors = [
+  { name: "Jorge Mora", href: "https://github.com/moraxh" },
+  { name: "Hadassah Garcia", href: "https://github.com/HadassahGarcia" },
+];
+
 const contentVariants = {
   enter: (dir: number) => ({ x: dir * 30, opacity: 0, scale: 0.98 }),
   center: { x: 0, opacity: 1, scale: 1 },
@@ -131,33 +136,36 @@ export function AppSidebar() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
-              className="text-[0.7rem] ms-auto text-zinc-600 flex items-center justify-between pt-2 mb-auto"
+              className="text-[0.7rem] ms-auto text-zinc-600 flex flex-col items-end gap-1 pt-2 mb-auto"
             >
-              <motion.a
-                href="https://github.com/moraxh"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-white/60 hover:text-white transition-colors flex gap-1"
-                initial="initial"
-                whileHover="hover"
-              >
-                Jorge Mora
-                <span className="sr-only">GitHub</span>
-                <motion.svg
-                  viewBox="0 0 24 24"
-                  width="15"
-                  height="15"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  variants={iconVariants}
+              {authors.map((author) => (
+                <motion.a
+                  key={author.href}
+                  href={author.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/60 hover:text-white transition-colors flex gap-1"
+                  initial="initial"
+                  whileHover="hover"
                 >
-                  <title>Profile</title>
-                  <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
-                </motion.svg>
-              </motion.a>
+                  {author.name}
+                  <span className="sr-only">GitHub</span>
+                  <motion.svg
+                    viewBox="0 0 24 24"
+                    width="15"
+                    height="15"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    variants={iconVariants}
+                  >
+                    <title>Profile</title>
+                    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+                  </motion.svg>
+                </motion.a>
+              ))}
             </motion.div>
 
           </SidebarMenu>
@@ -196,8 +204,12 @@ export function AppSidebar() {
         </SidebarHeader>
 
         <SidebarContent className="w-full flex-1 overflow-hidden flex flex-col relative">
-          {/* Subtle background glow */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl -z-10 pointer-events-none" />
+          {/* Animated ambient glow */}
+          <motion.div
+            animate={{ x: [0, 20, 0], y: [0, 15, 0], opacity: [0.4, 0.7, 0.4] }}
+            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl -z-10 pointer-events-none"
+          />
 
           {/* Fixed height container for Map, only visible on Mobile */}
           <motion.div
@@ -233,9 +245,15 @@ export function AppSidebar() {
           </div>
         </SidebarContent>
 
-        <SidebarFooter className="border-t mt-auto p-5 relative overflow-hidden ">
+        <SidebarFooter className="border-t mt-auto p-5 relative overflow-hidden">
+          {/* Subtle footer glow */}
           <motion.div
-            className="flex items-start gap-1.5 text-zinc-500"
+            animate={{ opacity: [0.3, 0.6, 0.3] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-48 h-20 bg-white/3 rounded-full blur-2xl pointer-events-none"
+          />
+          <motion.div
+            className="flex items-start gap-1.5 text-zinc-500 relative z-10"
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.5 }}
