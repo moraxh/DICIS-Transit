@@ -11,11 +11,11 @@ import {
 import type { OverridePoint } from "@hooks/admin/use-route-overrides";
 import { useDirectionsPreview } from "@hooks/use-directions-preview";
 import { nearestPathIndex } from "@lib/bus-path-utils";
-import { latLngPathToLngLatPath } from "@lib/map-coordinates";
 import { DICIS_COORDS } from "@lib/constants";
+import { latLngPathToLngLatPath } from "@lib/map-coordinates";
 import { cn } from "@lib/utils";
-import type MapLibreGL from "maplibre-gl";
 import { Check, Diamond, MapPin } from "lucide-react";
+import type MapLibreGL from "maplibre-gl";
 import { useEffect } from "react";
 
 const DEFAULT_CENTER: [number, number] = [DICIS_COORDS.lng, DICIS_COORDS.lat];
@@ -59,7 +59,10 @@ function EditorMarkerContent({ point }: { point: OverridePoint }) {
   if (point.stop_id === null && point.point_role === "stop") {
     return (
       <div className="rounded-full bg-amber-400 p-1 shadow-[0_0_0_3px_rgba(0,0,0,0.55),0_6px_18px_rgba(0,0,0,0.4)]">
-        <MapPin className="size-4 fill-amber-400 text-zinc-900" strokeWidth={2.2} />
+        <MapPin
+          className="size-4 fill-amber-400 text-zinc-900"
+          strokeWidth={2.2}
+        />
       </div>
     );
   }
@@ -231,18 +234,21 @@ export function RouteEditorMap({
               className={cn(
                 "text-[10px]",
                 !point.active && "line-through opacity-40",
-                point.stop_id === null && point.point_role === "stop" && "text-amber-300",
+                point.stop_id === null &&
+                  point.point_role === "stop" &&
+                  "text-amber-300",
               )}
             >
               {point.stop_name}
             </MarkerLabel>
           )}
           {point.point_role === "waypoint" && (
-            <MarkerLabel className="text-[9px] text-blue-400/70">auxiliar</MarkerLabel>
+            <MarkerLabel className="text-[9px] text-blue-400/70">
+              auxiliar
+            </MarkerLabel>
           )}
         </MapMarker>
       ))}
-
     </Map>
   );
 }

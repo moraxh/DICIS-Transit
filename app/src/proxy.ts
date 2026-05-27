@@ -5,6 +5,7 @@ import { type NextRequest, NextResponse } from "next/server";
 const allowedPaths = [
   "/admin/login",
   "/unauthorized",
+  "/offline",
   "/api/auth/login/student",
   "/api/auth/login/admin",
 ];
@@ -88,6 +89,6 @@ export default async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.well-known).*)",
+    "/((?!_next/static|_next/image|favicon.ico|favicon_dark.ico|favicon_light.ico|robots.txt|sitemap.xml|.well-known|manifest.webmanifest|sw.js|offline|icons).*)",
   ],
 };

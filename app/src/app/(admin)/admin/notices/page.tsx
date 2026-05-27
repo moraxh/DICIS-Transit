@@ -44,7 +44,6 @@ import {
 } from "@hooks/admin/use-notices";
 import { useAuth } from "@providers/auth-provider";
 import { differenceInHours } from "date-fns";
-import { AnimatePresence, motion } from "motion/react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -62,6 +61,7 @@ import {
   Trash2,
   Zap,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";

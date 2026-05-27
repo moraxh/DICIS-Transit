@@ -60,10 +60,7 @@ export function LiveIndicator({
           className="text-zinc-600 hover:text-zinc-300 transition-colors disabled:opacity-40"
           title="Actualizar datos"
         >
-          <RefreshCw
-            size={13}
-            className={cn(isRefreshing && "animate-spin")}
-          />
+          <RefreshCw size={13} className={cn(isRefreshing && "animate-spin")} />
         </button>
       )}
     </div>

@@ -40,7 +40,7 @@ async function fetchNotices(): Promise<Notice[]> {
   const { data, error } = await supabase
     .from("notices")
     .select(
-      "id,title,content,priority,category,affected_route_ids,start_at,created_at,expires_at"
+      "id,title,content,priority,category,affected_route_ids,start_at,created_at,expires_at",
     )
     .order("created_at", { ascending: false });
   if (error) throw error;

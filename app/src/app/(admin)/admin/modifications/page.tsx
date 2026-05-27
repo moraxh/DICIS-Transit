@@ -4,12 +4,12 @@ import { RouteEditorSheet } from "@components/admin/route-editor/route-editor-sh
 import { StatusBadge } from "@components/admin/status-badge";
 import { Button } from "@components/ui/button";
 import { useActiveRoutes } from "@hooks/admin/use-active-routes";
-import { useRouteOverrides } from "@hooks/admin/use-route-overrides";
 import type { RouteOverride } from "@hooks/admin/use-route-overrides";
+import { useRouteOverrides } from "@hooks/admin/use-route-overrides";
 import { useRoutePoints } from "@hooks/admin/use-route-points";
 import type { RouteData } from "@providers/map-provider";
-import { AnimatePresence, motion } from "motion/react";
 import { Loader2, Map, Route } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useState } from "react";
 
 function RouteEditorLauncher({
@@ -58,7 +58,10 @@ const routeRowVariants = {
 };
 
 export default function AdminModificationsPage() {
-  const [editorRoute, setEditorRoute] = useState<{ id: string; name: string } | null>(null);
+  const [editorRoute, setEditorRoute] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const { data: routes = [] } = useActiveRoutes();
   const { data: overrides = [] } = useRouteOverrides();
@@ -79,7 +82,9 @@ export default function AdminModificationsPage() {
     [overrides],
   );
 
-  const deviatedCount = routes.filter((r) => getActiveOverride(r.id) !== null).length;
+  const deviatedCount = routes.filter(
+    (r) => getActiveOverride(r.id) !== null,
+  ).length;
 
   return (
     <>
@@ -107,7 +112,8 @@ export default function AdminModificationsPage() {
             <p className="text-xs text-zinc-500 mt-0.5">
               {deviatedCount > 0 ? (
                 <span className="text-yellow-600">
-                  {deviatedCount} ruta{deviatedCount > 1 ? "s" : ""} desviada{deviatedCount > 1 ? "s" : ""}
+                  {deviatedCount} ruta{deviatedCount > 1 ? "s" : ""} desviada
+                  {deviatedCount > 1 ? "s" : ""}
                 </span>
               ) : (
                 <span className="text-zinc-600">Sin desvíos activos</span>
@@ -145,7 +151,9 @@ export default function AdminModificationsPage() {
                       className="flex items-center justify-between px-4 py-3 border-b border-zinc-800/40 last:border-0 hover:bg-white/[0.02] transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${override ? "bg-yellow-500" : "bg-zinc-700"}`} />
+                        <div
+                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${override ? "bg-yellow-500" : "bg-zinc-700"}`}
+                        />
                         <span className="truncate text-sm font-medium text-zinc-200">
                           {route.name}
                         </span>
@@ -153,12 +161,17 @@ export default function AdminModificationsPage() {
                           <StatusBadge variant="warning">Desviada</StatusBadge>
                         )}
                       </div>
-                      <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                      <motion.div
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
+                      >
                         <Button
                           size="sm"
                           variant="outline"
                           className="gap-1.5 border-zinc-800 text-xs text-zinc-400 hover:border-zinc-600 hover:text-white hover:bg-white/5 shrink-0 transition-all"
-                          onClick={() => setEditorRoute({ id: route.id, name: route.name })}
+                          onClick={() =>
+                            setEditorRoute({ id: route.id, name: route.name })
+                          }
                         >
                           <Map className="size-3" />
                           {override ? "Editar desvío" : "Editar en mapa"}

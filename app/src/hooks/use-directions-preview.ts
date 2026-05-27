@@ -22,9 +22,7 @@ async function fetchPreviewGeometry(
   const active = points.filter((p) => p.active);
   if (active.length < 2) throw new Error("invalid");
 
-  const waypoints = active
-    .map((p) => `${p.longitude},${p.latitude}`)
-    .join(";");
+  const waypoints = active.map((p) => `${p.longitude},${p.latitude}`).join(";");
   const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${waypoints}?geometries=geojson&overview=full&access_token=${NEXT_PUBLIC_MAPBOX_TOKEN}`;
 
   const response = await fetch(url);
@@ -80,7 +78,15 @@ export function useDirectionsPreview(points: PreviewPoint[]): PreviewResult {
       if (abortRef.current) abortRef.current.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(points.map((p) => ({ lat: p.latitude, lng: p.longitude, active: p.active })))]);
+  }, [
+    JSON.stringify(
+      points.map((p) => ({
+        lat: p.latitude,
+        lng: p.longitude,
+        active: p.active,
+      })),
+    ),
+  ]);
 
   return { path, status };
 }

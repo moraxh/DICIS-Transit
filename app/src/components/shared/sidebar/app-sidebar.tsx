@@ -20,6 +20,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import AlertsTab from "./alerts";
 import HomeTab from "./home";
+import ProfileTab from "./profile";
 import RoutesTab from "./routes";
 import SchedulesTab from "./schedules";
 
@@ -33,6 +34,7 @@ const tabs = [
   { value: "routes", label: "Rutas", component: RoutesTab },
   { value: "schedules", label: "Horarios", component: SchedulesTab },
   { value: "alerts", label: "Avisos", component: AlertsTab },
+  { value: "profile", label: "Perfil", component: ProfileTab },
 ];
 
 const iconVariants = {
@@ -63,7 +65,6 @@ export function AppSidebar() {
     : "home";
   const activeTabConfig =
     tabs.find((tab) => tab.value === activeTab) ?? tabs[0];
-
 
   const handleTabChange = useCallback(
     (nextTab: string) => {
@@ -167,7 +168,6 @@ export function AppSidebar() {
                 </motion.a>
               ))}
             </motion.div>
-
           </SidebarMenu>
 
           <motion.div

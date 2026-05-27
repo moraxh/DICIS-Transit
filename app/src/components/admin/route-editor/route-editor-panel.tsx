@@ -3,7 +3,6 @@
 import { Button } from "@components/ui/button";
 import type { OverridePoint } from "@hooks/admin/use-route-overrides";
 import { cn } from "@lib/utils";
-import type { EditorMode } from "./route-editor-map";
 import {
   ArrowDown,
   ArrowUp,
@@ -12,6 +11,7 @@ import {
   Trash2,
   WaypointsIcon,
 } from "lucide-react";
+import type { EditorMode } from "./route-editor-map";
 
 interface RouteEditorPanelProps {
   points: OverridePoint[];
@@ -28,11 +28,18 @@ function PointIcon({ point }: { point: OverridePoint }) {
   const base = "size-4 shrink-0";
 
   if (point.point_role === "waypoint") {
-    return <Diamond className={cn(base, dimmed, "text-blue-400")} strokeWidth={1.5} />;
+    return (
+      <Diamond
+        className={cn(base, dimmed, "text-blue-400")}
+        strokeWidth={1.5}
+      />
+    );
   }
   // Temp stop: amber
   if (point.stop_id === null && point.point_role === "stop") {
-    return <MapPin className={cn(base, dimmed, "text-amber-400")} strokeWidth={2} />;
+    return (
+      <MapPin className={cn(base, dimmed, "text-amber-400")} strokeWidth={2} />
+    );
   }
   return (
     <MapPin
@@ -52,13 +59,29 @@ function PointIcon({ point }: { point: OverridePoint }) {
 
 function RoleBadge({ point }: { point: OverridePoint }) {
   if (point.point_role === "start")
-    return <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Inicio</span>;
+    return (
+      <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">
+        Inicio
+      </span>
+    );
   if (point.point_role === "end")
-    return <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Fin</span>;
+    return (
+      <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">
+        Fin
+      </span>
+    );
   if (point.point_role === "waypoint")
-    return <span className="text-[9px] font-bold uppercase tracking-widest text-blue-500">Auxiliar</span>;
+    return (
+      <span className="text-[9px] font-bold uppercase tracking-widest text-blue-500">
+        Auxiliar
+      </span>
+    );
   if (point.stop_id === null)
-    return <span className="text-[9px] font-bold uppercase tracking-widest text-amber-500">Temporal</span>;
+    return (
+      <span className="text-[9px] font-bold uppercase tracking-widest text-amber-500">
+        Temporal
+      </span>
+    );
   return null;
 }
 
@@ -89,7 +112,8 @@ export function RouteEditorPanel({
             <span className="size-2 rounded-full bg-amber-400" /> Temporal
           </span>
           <span className="flex items-center gap-1">
-            <Diamond className="size-2.5 text-blue-400" strokeWidth={1.5} /> Auxiliar (invisible)
+            <Diamond className="size-2.5 text-blue-400" strokeWidth={1.5} />{" "}
+            Auxiliar (invisible)
           </span>
         </div>
       </div>

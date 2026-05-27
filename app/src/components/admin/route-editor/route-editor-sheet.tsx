@@ -1,12 +1,15 @@
 "use client";
 
 import { DatePicker } from "@components/admin/date-picker";
-import { RouteEditorMap } from "@components/admin/route-editor/route-editor-map";
 import type { EditorMode } from "@components/admin/route-editor/route-editor-map";
+import { RouteEditorMap } from "@components/admin/route-editor/route-editor-map";
 import { RouteEditorPanel } from "@components/admin/route-editor/route-editor-panel";
 import { Button } from "@components/ui/button";
 import { Label } from "@components/ui/label";
-import type { OverridePoint, RouteOverride } from "@hooks/admin/use-route-overrides";
+import type {
+  OverridePoint,
+  RouteOverride,
+} from "@hooks/admin/use-route-overrides";
 import {
   useRestoreRoute,
   useSaveRouteOverride,
@@ -14,7 +17,14 @@ import {
 import { useDirectionsPreview } from "@hooks/use-directions-preview";
 import { useAuth } from "@providers/auth-provider";
 import type { RouteData } from "@providers/map-provider";
-import { AlertTriangle, ArrowLeft, Loader2, RotateCcw, Save, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Loader2,
+  RotateCcw,
+  Save,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface RouteEditorSheetProps {
@@ -72,7 +82,9 @@ function StopNameModal({
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="w-80 rounded-xl border border-zinc-700 bg-zinc-900 p-5 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white">Nombre de la parada temporal</h3>
+          <h3 className="text-sm font-semibold text-white">
+            Nombre de la parada temporal
+          </h3>
           <button
             type="button"
             onClick={onCancel}
@@ -142,10 +154,13 @@ export function RouteEditorSheet({
     return d;
   });
   const [validTo, setValidTo] = useState<Date | undefined>(
-    existingOverride?.valid_to ? new Date(existingOverride.valid_to) : undefined,
+    existingOverride?.valid_to
+      ? new Date(existingOverride.valid_to)
+      : undefined,
   );
 
-  const { path: previewPath, status: previewStatus } = useDirectionsPreview(points);
+  const { path: previewPath, status: previewStatus } =
+    useDirectionsPreview(points);
 
   const activeCount = points.filter(
     (p) => p.active && p.point_role !== "waypoint",
@@ -327,14 +342,18 @@ export function RouteEditorSheet({
           <ArrowLeft className="size-4" />
         </button>
         <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold text-white">Editor de ruta temporal</h2>
+          <h2 className="text-sm font-semibold text-white">
+            Editor de ruta temporal
+          </h2>
           <p className="truncate text-xs text-zinc-500">{route.name}</p>
         </div>
 
         {/* Validity range */}
         <div className="flex items-center gap-2">
           <div className="flex flex-col gap-0.5">
-            <Label className="text-[10px] font-medium text-zinc-600">Desde</Label>
+            <Label className="text-[10px] font-medium text-zinc-600">
+              Desde
+            </Label>
             <DatePicker
               value={validFrom}
               onChange={(d) => d && setValidFrom(d)}
@@ -342,7 +361,9 @@ export function RouteEditorSheet({
             />
           </div>
           <div className="flex flex-col gap-0.5">
-            <Label className="text-[10px] font-medium text-zinc-600">Hasta (opcional)</Label>
+            <Label className="text-[10px] font-medium text-zinc-600">
+              Hasta (opcional)
+            </Label>
             <DatePicker
               value={validTo}
               onChange={setValidTo}

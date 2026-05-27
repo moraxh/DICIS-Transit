@@ -1,6 +1,9 @@
 "use client";
 
+import { Input } from "@components/ui/input";
+import { useFavorites } from "@hooks/use-favorites";
 import { getNextArrivalText } from "@lib/schedule-utils";
+import { useAuth } from "@providers/auth-provider";
 import { useMapData } from "@providers/map-provider";
 import clsx from "clsx";
 import {
@@ -11,6 +14,9 @@ import {
   Clock,
   Loader2,
   MapPin,
+  Search,
+  Star,
+  X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
@@ -28,11 +34,17 @@ export default function RoutesTab() {
     directionFilter: direction,
     setDirectionFilter: setDirection,
   } = useMapData();
+  const { userData } = useAuth();
+  const { isFavorite, toggleFavorite } = useFavorites(userData?.id);
   const [mounted, setMounted] = useState(false);
+  const [query, setQuery] = useState("");
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const filteredRoutes = useMemo(() => {
+    const q = query.toLowerCase().trim();
     return routes.filter((r) => {
       const matchesSchedule =
         schedule === "Sábado"
@@ -44,9 +56,18 @@ export default function RoutesTab() {
           ? r.direction === "to_dicis"
           : r.direction === "from_dicis";
 
-      return matchesSchedule && matchesDirection;
+      const matchesQuery =
+        q === "" ||
+        r.name.toLowerCase().includes(q) ||
+        r.points.some(
+          (p) =>
+            ["stop", "start", "end"].includes(p.point_role) &&
+            p.stop_name.toLowerCase().includes(q),
+        );
+
+      return matchesSchedule && matchesDirection && matchesQuery;
     });
-  }, [routes, schedule, direction]);
+  }, [routes, schedule, direction, query]);
 
   // Handle auto-select if current active is filtered out
   useEffect(() => {
@@ -70,6 +91,26 @@ export default function RoutesTab() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="px-4 py-3 shrink-0 border-b border-zinc-200 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-950/20 backdrop-blur-sm z-10 space-y-3">
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar ruta o parada..."
+            className="pl-8 pr-8 h-8 text-xs rounded-xl bg-zinc-100/60 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 focus-visible:ring-1"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
         <div className="bg-zinc-200/50 dark:bg-zinc-900/50 p-1 rounded-[16px] flex relative">
           {(["L-V", "Sábado"] as const).map((tab) => (
             <button
@@ -211,6 +252,36 @@ export default function RoutesTab() {
                           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                         </span>
                       )}
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavorite(route.id);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.stopPropagation();
+                            toggleFavorite(route.id);
+                          }
+                        }}
+                        title={
+                          isFavorite(route.id)
+                            ? "Quitar de favoritos"
+                            : "Agregar a favoritos"
+                        }
+                        className={clsx(
+                          "p-1 rounded-full transition-colors z-10 cursor-pointer",
+                          isFavorite(route.id)
+                            ? "text-amber-400 hover:text-amber-300"
+                            : "text-zinc-300 dark:text-zinc-600 hover:text-amber-400 dark:hover:text-amber-400 opacity-0 group-hover:opacity-100",
+                        )}
+                      >
+                        <Star
+                          className="w-4 h-4"
+                          fill={isFavorite(route.id) ? "currentColor" : "none"}
+                        />
+                      </div>
                       {isActive ? (
                         <CheckCircle2 className="w-5 h-5 text-zinc-900 dark:text-zinc-100" />
                       ) : (

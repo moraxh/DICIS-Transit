@@ -1,13 +1,15 @@
 import {
-  MarkerContent,
-  MarkerTooltip,
   MapMarker,
   MapRoute,
+  MarkerContent,
+  MarkerTooltip,
 } from "@components/ui/map";
 import { useRouteGeometry } from "@hooks/use-route-geometry";
-import { pointToLngLat, latLngPathToLngLatPath } from "@lib/map-coordinates";
+import { useStopEta } from "@hooks/use-stop-eta";
+import { latLngPathToLngLatPath, pointToLngLat } from "@lib/map-coordinates";
 import { getNextArrivalText } from "@lib/schedule-utils";
 import type {
+  ReportCount,
   RouteData,
   RouteTemporaryOverride,
   RouteTemporaryOverridePoint,
@@ -79,6 +81,33 @@ function StopMarker({
         <span className="stop-dot flex size-2" />
       )}
     </div>
+  );
+}
+
+function EtaBadge({
+  route,
+  cumulativeMinutes,
+  stopId,
+  reportCounts,
+}: {
+  route: RouteData;
+  cumulativeMinutes: number;
+  stopId: string | null;
+  reportCounts: ReportCount[];
+}) {
+  const { etaMinutes, isImminent } = useStopEta(
+    route,
+    cumulativeMinutes,
+    stopId,
+    reportCounts,
+  );
+  if (!isImminent || etaMinutes === null) return null;
+  const mins = Math.ceil(etaMinutes);
+  return (
+    <span className="flex items-center gap-1 whitespace-nowrap text-xs font-semibold text-emerald-400">
+      <span className="inline-block size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+      Llega en ~{mins} min
+    </span>
   );
 }
 
@@ -269,6 +298,14 @@ export default function RouteLayer({
                   <span className="whitespace-nowrap text-xs font-medium text-zinc-400">
                     {nextArrivalText}
                   </span>
+                  {point.point_role === "stop" && !isSuspended && (
+                    <EtaBadge
+                      route={route}
+                      cumulativeMinutes={cumulativeMinutes}
+                      stopId={point.stop_id ?? null}
+                      reportCounts={reportCounts}
+                    />
+                  )}
                   {hasReports ? (
                     <>
                       <div className="my-0.5 w-full border-t border-zinc-800" />

@@ -106,7 +106,9 @@ export function buildStopRoadIndices(
     const remaining = namedPoints.length - p - 1;
     const minIdx = indices[p - 1] ?? 0;
     const maxIdx = Math.max(minIdx, path.length - 2 - remaining);
-    indices.push(nearestPathIndex(path, pt.latitude, pt.longitude, minIdx, maxIdx));
+    indices.push(
+      nearestPathIndex(path, pt.latitude, pt.longitude, minIdx, maxIdx),
+    );
   }
   return indices;
 }
@@ -189,5 +191,5 @@ export function lerpAngle(a: number, b: number, t: number): number {
 
 /** Cubic ease-in-out: smooth acceleration and deceleration. */
 export function easeInOutCubic(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
 }

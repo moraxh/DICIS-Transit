@@ -1,4 +1,4 @@
-import { MarkerContent, MarkerTooltip, MapMarker } from "@components/ui/map";
+import { MapMarker, MarkerContent, MarkerTooltip } from "@components/ui/map";
 import { DICIS_COORDS } from "@lib/constants";
 import { haversineMeters } from "@lib/schedule-utils";
 import { useMapData } from "@providers/map-provider";

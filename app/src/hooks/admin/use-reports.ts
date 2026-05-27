@@ -30,7 +30,9 @@ export interface Report {
 async function fetchReports(): Promise<Report[]> {
   const { data, error } = await supabase
     .from("reports")
-    .select("id,report_type,delay_mins,created_at,route_id,stop_id,user_id,status,credibility_score,corroboration_count,credibility_factors")
+    .select(
+      "id,report_type,delay_mins,created_at,route_id,stop_id,user_id,status,credibility_score,corroboration_count,credibility_factors",
+    )
     .order("created_at", { ascending: false })
     .limit(200);
   if (error) throw error;
@@ -50,21 +52,35 @@ export function useUpdateReportStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: ReportStatus }) => {
-      const { error } = await supabase.from("reports").update({ status }).eq("id", id);
+    mutationFn: async ({
+      id,
+      status,
+    }: {
+      id: string;
+      status: ReportStatus;
+    }) => {
+      const { error } = await supabase
+        .from("reports")
+        .update({ status })
+        .eq("id", id);
       if (error) throw error;
       return { id, status };
     },
     onMutate: async ({ id, status }) => {
       await queryClient.cancelQueries({ queryKey: ["admin", "reports-list"] });
-      const prev = queryClient.getQueryData<Report[]>(["admin", "reports-list"]);
-      queryClient.setQueryData<Report[]>(["admin", "reports-list"], (old) =>
-        old?.map((r) => (r.id === id ? { ...r, status } : r)) ?? [],
+      const prev = queryClient.getQueryData<Report[]>([
+        "admin",
+        "reports-list",
+      ]);
+      queryClient.setQueryData<Report[]>(
+        ["admin", "reports-list"],
+        (old) => old?.map((r) => (r.id === id ? { ...r, status } : r)) ?? [],
       );
       return { prev };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(["admin", "reports-list"], ctx.prev);
+      if (ctx?.prev)
+        queryClient.setQueryData(["admin", "reports-list"], ctx.prev);
       toast.error("Error al actualizar estado");
     },
     onSuccess: () => {
@@ -77,22 +93,37 @@ export function useBulkUpdateReportStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ ids, status }: { ids: string[]; status: ReportStatus }) => {
-      const { error } = await supabase.from("reports").update({ status }).in("id", ids);
+    mutationFn: async ({
+      ids,
+      status,
+    }: {
+      ids: string[];
+      status: ReportStatus;
+    }) => {
+      const { error } = await supabase
+        .from("reports")
+        .update({ status })
+        .in("id", ids);
       if (error) throw error;
       return { ids, status };
     },
     onMutate: async ({ ids, status }) => {
       await queryClient.cancelQueries({ queryKey: ["admin", "reports-list"] });
-      const prev = queryClient.getQueryData<Report[]>(["admin", "reports-list"]);
+      const prev = queryClient.getQueryData<Report[]>([
+        "admin",
+        "reports-list",
+      ]);
       const idSet = new Set(ids);
-      queryClient.setQueryData<Report[]>(["admin", "reports-list"], (old) =>
-        old?.map((r) => (idSet.has(r.id) ? { ...r, status } : r)) ?? [],
+      queryClient.setQueryData<Report[]>(
+        ["admin", "reports-list"],
+        (old) =>
+          old?.map((r) => (idSet.has(r.id) ? { ...r, status } : r)) ?? [],
       );
       return { prev };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(["admin", "reports-list"], ctx.prev);
+      if (ctx?.prev)
+        queryClient.setQueryData(["admin", "reports-list"], ctx.prev);
       toast.error("Error al actualizar en bloque");
     },
     onSuccess: ({ ids, status }) => {
@@ -107,4 +138,3 @@ export function useBulkUpdateReportStatus() {
     },
   });
 }
-

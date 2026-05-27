@@ -32,8 +32,8 @@ import {
   useRecentReports,
   useRouteHealth,
 } from "@hooks/admin/use-dashboard-data";
-import { useCreateNotice } from "@hooks/admin/use-notices";
 import type { Notice, NoticePayload } from "@hooks/admin/use-notices";
+import { useCreateNotice } from "@hooks/admin/use-notices";
 import { useAuth } from "@providers/auth-provider";
 import { useRealtimeCtx } from "@providers/realtime-provider";
 import { useQueryClient } from "@tanstack/react-query";
@@ -53,8 +53,14 @@ import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
 const noticeSchema = z.object({
-  title: z.string().min(3, "Mínimo 3 caracteres").max(120, "Máximo 120 caracteres"),
-  content: z.string().min(10, "Mínimo 10 caracteres").max(1000, "Máximo 1000 caracteres"),
+  title: z
+    .string()
+    .min(3, "Mínimo 3 caracteres")
+    .max(120, "Máximo 120 caracteres"),
+  content: z
+    .string()
+    .min(10, "Mínimo 10 caracteres")
+    .max(1000, "Máximo 1000 caracteres"),
   priority: z.enum(["low", "medium", "high", "urgent"]),
   expires_at: z.date().optional(),
 });
@@ -88,9 +94,15 @@ function NoticeForm({
   const content = watch("content") ?? "";
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 px-5 pb-5">
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="flex flex-col gap-4 px-5 pb-5"
+    >
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="qa-notice-title" className="text-xs text-zinc-500 font-medium">
+        <Label
+          htmlFor="qa-notice-title"
+          className="text-xs text-zinc-500 font-medium"
+        >
           Título
         </Label>
         <Input
@@ -99,11 +111,16 @@ function NoticeForm({
           aria-invalid={!!errors.title}
           {...register("title")}
         />
-        {errors.title && <p className="text-[11px] text-destructive">{errors.title.message}</p>}
+        {errors.title && (
+          <p className="text-[11px] text-destructive">{errors.title.message}</p>
+        )}
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="qa-notice-content" className="text-xs text-zinc-500 font-medium">
+        <Label
+          htmlFor="qa-notice-content"
+          className="text-xs text-zinc-500 font-medium"
+        >
           Contenido
         </Label>
         <Textarea
@@ -115,9 +132,13 @@ function NoticeForm({
         />
         <div className="flex items-center justify-end gap-2">
           {errors.content && (
-            <p className="text-[11px] text-destructive flex-1">{errors.content.message}</p>
+            <p className="text-[11px] text-destructive flex-1">
+              {errors.content.message}
+            </p>
           )}
-          <p className="text-[10px] text-zinc-600 ml-auto">{content.length}/1000</p>
+          <p className="text-[10px] text-zinc-600 ml-auto">
+            {content.length}/1000
+          </p>
         </div>
       </div>
 
@@ -144,7 +165,9 @@ function NoticeForm({
           />
         </div>
         <div className="flex flex-col gap-1.5 flex-1">
-          <Label className="text-xs text-zinc-500 font-medium">Expira (opcional)</Label>
+          <Label className="text-xs text-zinc-500 font-medium">
+            Expira (opcional)
+          </Label>
           <Controller
             name="expires_at"
             control={control}
@@ -178,14 +201,19 @@ export default function AdminDashboardPage() {
   const [noticeOpen, setNoticeOpen] = useState(false);
 
   const { data: kpis, isLoading: kpisLoading } = useDashboardKPIs();
-  const { data: recentReports = [], isLoading: reportsLoading } = useRecentReports();
+  const { data: recentReports = [], isLoading: reportsLoading } =
+    useRecentReports();
   const { data: routeHealth = [], isLoading: healthLoading } = useRouteHealth();
   const createNotice = useCreateNotice();
 
-  const alerts = useMemo(() => buildAlerts(kpis, routeHealth), [kpis, routeHealth]);
+  const alerts = useMemo(
+    () => buildAlerts(kpis, routeHealth),
+    [kpis, routeHealth],
+  );
 
   const routes = useMemo(
-    () => Object.fromEntries(routeHealth.map((route) => [route.id, route.name])),
+    () =>
+      Object.fromEntries(routeHealth.map((route) => [route.id, route.name])),
     [routeHealth],
   );
 
@@ -220,12 +248,11 @@ export default function AdminDashboardPage() {
     createNotice.mutate(payload, { onSuccess: () => setNoticeOpen(false) });
   }
 
-  const systemStatus =
-    alerts.some((alert) => alert.severity === "critical")
-      ? "critical"
-      : alerts.some((alert) => alert.severity === "warning")
-        ? "warning"
-        : "ok";
+  const systemStatus = alerts.some((alert) => alert.severity === "critical")
+    ? "critical"
+    : alerts.some((alert) => alert.severity === "warning")
+      ? "warning"
+      : "ok";
 
   const statusConfig = {
     ok: {
@@ -257,14 +284,20 @@ export default function AdminDashboardPage() {
       <div className="flex-1 p-6 flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-white leading-none">Dashboard</h1>
+            <h1 className="text-lg font-bold text-white leading-none">
+              Dashboard
+            </h1>
             <p className="text-xs text-zinc-500 mt-1.5 capitalize">
               {format(new Date(), "EEEE d 'de' MMMM, yyyy", { locale: es })}
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className={`flex items-center gap-1.5 text-xs font-medium ${statusConfig.color}`}>
-              <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${statusConfig.dot}`} />
+            <div
+              className={`flex items-center gap-1.5 text-xs font-medium ${statusConfig.color}`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full shrink-0 ${statusConfig.dot}`}
+              />
               {statusConfig.label}
             </div>
             <div className="w-px h-4 bg-zinc-800" />
@@ -372,7 +405,10 @@ export default function AdminDashboardPage() {
 
             <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-4 flex-1">
               <SectionHeader>Estado de rutas</SectionHeader>
-              <RouteHealthPanel routes={routeHealth} isLoading={healthLoading} />
+              <RouteHealthPanel
+                routes={routeHealth}
+                isLoading={healthLoading}
+              />
             </div>
           </div>
         </div>
@@ -383,7 +419,10 @@ export default function AdminDashboardPage() {
           <DialogHeader>
             <DialogTitle>Nuevo aviso</DialogTitle>
           </DialogHeader>
-          <NoticeForm onSubmit={handleCreateNotice} isPending={createNotice.isPending} />
+          <NoticeForm
+            onSubmit={handleCreateNotice}
+            isPending={createNotice.isPending}
+          />
         </DialogContent>
       </Dialog>
     </div>

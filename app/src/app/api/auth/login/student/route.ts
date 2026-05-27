@@ -8,7 +8,11 @@ import z from "zod";
 
 // ThumbmarkJS produces hex strings of 32-64 chars; reject trivially fabricated IDs
 const bodySchema = z.object({
-  visitorId: z.string().min(8).max(128).regex(/^[a-zA-Z0-9_\-]+$/),
+  visitorId: z
+    .string()
+    .min(8)
+    .max(128)
+    .regex(/^[a-zA-Z0-9_-]+$/),
 });
 
 export async function POST(request: NextRequest) {
@@ -82,14 +86,20 @@ export async function POST(request: NextRequest) {
     if (rateLimitError) {
       console.error("Student login rate limit error:", rateLimitError);
       return NextResponse.json(
-        { error: "Unable to validate login rate limit", code: "RATE_LIMIT_CHECK_FAILED" },
+        {
+          error: "Unable to validate login rate limit",
+          code: "RATE_LIMIT_CHECK_FAILED",
+        },
         { status: 500 },
       );
     }
 
     if (!rateLimitAllowed) {
       return NextResponse.json(
-        { error: "Too many login attempts. Try again later.", code: "RATE_LIMITED" },
+        {
+          error: "Too many login attempts. Try again later.",
+          code: "RATE_LIMITED",
+        },
         { status: 429 },
       );
     }

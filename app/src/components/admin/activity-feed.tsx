@@ -66,7 +66,10 @@ export function ActivityFeed({
     return (
       <div className="flex flex-col gap-2">
         {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="h-12 rounded-lg bg-zinc-800/50 animate-pulse" />
+          <div
+            key={i}
+            className="h-12 rounded-lg bg-zinc-800/50 animate-pulse"
+          />
         ))}
       </div>
     );
@@ -90,7 +93,8 @@ export function ActivityFeed({
           className="flex items-center justify-center gap-1.5 py-2 text-xs text-emerald-400 hover:text-emerald-300 transition-colors border-b border-zinc-800/60"
         >
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          {newCount} nuevo{newCount > 1 ? "s" : ""} · Click para marcar como visto
+          {newCount} nuevo{newCount > 1 ? "s" : ""} · Click para marcar como
+          visto
         </button>
       )}
       {reports.map((report) => {
@@ -100,7 +104,9 @@ export function ActivityFeed({
           color: "text-zinc-400 bg-zinc-800",
         };
         const Icon = cfg.icon;
-        const routeName = report.route_id ? (routes[report.route_id] ?? "—") : "—";
+        const routeName = report.route_id
+          ? (routes[report.route_id] ?? "—")
+          : "—";
 
         return (
           <Link
@@ -131,7 +137,9 @@ export function ActivityFeed({
                 </span>
               </div>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs text-zinc-600 truncate">{routeName}</span>
+                <span className="text-xs text-zinc-600 truncate">
+                  {routeName}
+                </span>
                 <span className="text-zinc-800">·</span>
                 <span className="text-xs text-zinc-700 shrink-0">
                   {formatDistanceToNow(new Date(report.created_at), {

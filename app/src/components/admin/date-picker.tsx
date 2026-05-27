@@ -2,7 +2,11 @@
 
 import { Button } from "@components/ui/button";
 import { Calendar } from "@components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@components/ui/popover";
 import { cn } from "@lib/utils";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -42,7 +46,9 @@ export function DatePicker({
       >
         <CalendarIcon className="mr-2 size-4 shrink-0" />
         <span className="truncate">
-          {value ? format(value, "d 'de' MMMM, yyyy", { locale: es }) : placeholder}
+          {value
+            ? format(value, "d 'de' MMMM, yyyy", { locale: es })
+            : placeholder}
         </span>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto p-0">

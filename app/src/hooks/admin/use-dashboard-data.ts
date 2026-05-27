@@ -2,7 +2,7 @@
 
 import { supabase } from "@lib/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { subDays, subHours, startOfDay } from "date-fns";
+import { startOfDay, subDays, subHours } from "date-fns";
 
 export interface KPIData {
   activeRoutes: number;
@@ -55,7 +55,10 @@ async function fetchKPIs(): Promise<KPIData> {
     expNoticesRes,
     expModsRes,
   ] = await Promise.all([
-    supabase.from("routes").select("id", { count: "exact" }).eq("is_active", true),
+    supabase
+      .from("routes")
+      .select("id", { count: "exact" })
+      .eq("is_active", true),
     supabase
       .from("notices")
       .select("id", { count: "exact" })
@@ -136,7 +139,8 @@ async function fetchRouteHealth(): Promise<RouteHealth[]> {
 
   const countByRoute: Record<string, number> = {};
   for (const r of reports) {
-    if (r.route_id) countByRoute[r.route_id] = (countByRoute[r.route_id] ?? 0) + 1;
+    if (r.route_id)
+      countByRoute[r.route_id] = (countByRoute[r.route_id] ?? 0) + 1;
   }
 
   return routes.map((route) => {

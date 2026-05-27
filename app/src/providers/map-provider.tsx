@@ -1,12 +1,15 @@
 "use client";
 
 import { supabase } from "@lib/supabase/client";
+import { useAuth } from "@providers/auth-provider";
+import { useSearchParams } from "next/navigation";
 import {
   createContext,
   type ReactNode,
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -61,7 +64,14 @@ interface Notice {
   title: string;
   content: string;
   priority: "urgent" | "high" | "medium" | "low";
-  category: "delay" | "detour" | "cancellation" | "schedule_change" | "incident" | "info" | "maintenance";
+  category:
+    | "delay"
+    | "detour"
+    | "cancellation"
+    | "schedule_change"
+    | "incident"
+    | "info"
+    | "maintenance";
   affected_route_ids: string[];
   start_at: string | null;
   created_at: string;
@@ -113,6 +123,11 @@ interface MapContextType {
 const MapContext = createContext<MapContextType | undefined>(undefined);
 
 export function MapProvider({ children }: { children: ReactNode }) {
+  const { userData } = useAuth();
+  const searchParams = useSearchParams();
+  const urlRouteId = searchParams.get("route");
+  const urlStopId = searchParams.get("stop");
+  const urlParamsApplied = useRef(false);
   const [routes, setRoutes] = useState<RouteData[]>([]);
   const [activeRouteId, setActiveRouteId] = useState<string | null>(null);
   const [activeStopId, setActiveStopId] = useState<string | null>(null);
@@ -128,7 +143,9 @@ export function MapProvider({ children }: { children: ReactNode }) {
     useState<DirectionFilter>("Ida");
 
   const [notices, setNotices] = useState<Notice[]>([]);
-  const [temporaryOverrides, setTemporaryOverrides] = useState<RouteTemporaryOverride[]>([]);
+  const [temporaryOverrides, setTemporaryOverrides] = useState<
+    RouteTemporaryOverride[]
+  >([]);
   const [alertsLoading, setAlertsLoading] = useState(true);
 
   const getDefaultRouteId = useCallback((parsedRoutes: RouteData[]) => {
@@ -212,7 +229,37 @@ export function MapProvider({ children }: { children: ReactNode }) {
         setRoutes(parsedRoutes);
 
         if (parsedRoutes.length > 0) {
-          setActiveRouteId(getDefaultRouteId(parsedRoutes));
+          // ?route= param takes highest priority (shared link)
+          if (
+            urlRouteId &&
+            parsedRoutes.some((r) => r.id === urlRouteId) &&
+            !urlParamsApplied.current
+          ) {
+            urlParamsApplied.current = true;
+            setActiveRouteId(urlRouteId);
+            if (urlStopId) setActiveStopId(urlStopId);
+            return;
+          }
+
+          let defaultId = getDefaultRouteId(parsedRoutes);
+
+          // Preselect first favorite route if user is logged in
+          if (userData?.id) {
+            const { data: favData } = await supabase
+              .from("user_favorites")
+              .select("route_id")
+              .eq("user_id", userData.id)
+              .limit(1)
+              .single();
+            if (
+              favData?.route_id &&
+              parsedRoutes.some((r) => r.id === favData.route_id)
+            ) {
+              defaultId = favData.route_id;
+            }
+          }
+
+          setActiveRouteId(defaultId);
         }
       } catch (err: unknown) {
         console.error("Error loading routes data:", err);

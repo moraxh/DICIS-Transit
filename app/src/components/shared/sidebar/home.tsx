@@ -1,5 +1,6 @@
 "use client";
 
+import { useFavorites } from "@hooks/use-favorites";
 import { DICIS_COORDS, REPORT_TYPE_LABEL } from "@lib/constants";
 import {
   formatMinutesRelative,
@@ -11,6 +12,7 @@ import {
   hasServiceToday,
   haversineMeters,
 } from "@lib/schedule-utils";
+import { useAuth } from "@providers/auth-provider";
 import { useMapData } from "@providers/map-provider";
 import {
   AlertTriangle,
@@ -22,10 +24,11 @@ import {
   Loader2,
   MapPin,
   Navigation,
+  Star,
   Timer,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 export default function HomeTab() {
@@ -42,6 +45,8 @@ export default function HomeTab() {
     temporaryOverrides,
     alertsLoading,
   } = useMapData();
+  const { userData } = useAuth();
+  const { favorites } = useFavorites(userData?.id);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -74,7 +79,7 @@ export default function HomeTab() {
   const overrideCount = temporaryOverrides.length;
   const firstOverrideRouteId = temporaryOverrides[0]?.route_id ?? null;
   const firstOverrideRoute = firstOverrideRouteId
-    ? routes.find((route) => route.id === firstOverrideRouteId)?.name ?? null
+    ? (routes.find((route) => route.id === firstOverrideRouteId)?.name ?? null)
     : null;
 
   const nearDicis = userLocation
@@ -131,7 +136,7 @@ export default function HomeTab() {
     suggestedDirection === "from_dicis"
       ? "Estás cerca de DICIS · rutas de regreso"
       : suggestedDirection === "to_dicis"
-        ? "Rutas desde Salamanca hacia DICIS"
+        ? "Basado en tu ubicación actual"
         : null;
 
   const directionFrom =
@@ -193,187 +198,239 @@ export default function HomeTab() {
     );
   }
 
+  const favoriteRoutes = favorites
+    .map((id) => routes.find((r) => r.id === id))
+    .filter(Boolean) as typeof routes;
+
   return (
     <div className="p-5 flex flex-col gap-5">
-      {/* Nearest stop — most actionable info first (P-20) */}
-      <motion.section
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-      >
-        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">
-          Tu parada más cercana
-        </h3>
-        {!userLocation ? (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4 text-center">
-            <MapPin size={16} className="text-zinc-600 mx-auto mb-1.5" />
-            <p className="text-xs text-zinc-500">
-              Activa tu ubicación para ver tu parada más cercana
-            </p>
-          </div>
-        ) : showLoading ? (
-          <div className="h-20 rounded-xl bg-white/5 animate-pulse" />
-        ) : !nearestStop ? (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4 text-center">
-            <p className="text-xs text-zinc-500">No hay paradas cercanas</p>
-          </div>
-        ) : (
-          <motion.button
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            onClick={() =>
-              focusStopOnMap(nearestStop.routeId, nearestStop.stopId)
-            }
-            className="w-full text-left flex flex-col gap-2 px-4 py-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
-                <MapPin size={16} className="text-emerald-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">
-                  {nearestStop.stopName}
-                </p>
-                <p className="text-xs text-zinc-500 truncate">
-                  {formatDistance(nearestStop.distanceMeters)} ·{" "}
-                  {nearestStop.routeName}
-                </p>
-              </div>
-              <ChevronRight size={14} className="text-zinc-600 shrink-0" />
-            </div>
-            <div className="flex items-center gap-2 pl-12">
-              <Timer size={12} className="text-emerald-400 shrink-0" />
-              {nearestStop.minutesUntilArrival === null ? (
-                <span className="text-xs text-zinc-500">
-                  Ya no pasan camiones hoy por esta parada
-                </span>
-              ) : nearestStopDisplayMinutes === 0 ? (
-                <span className="text-xs font-semibold text-emerald-400">
-                  Llegando ahora
-                </span>
-              ) : nearestStopDisplayMinutes !== null &&
-                nearestStopDisplayMinutes <= 5 ? (
-                <span className="text-xs font-semibold text-orange-400">
-                  ¡Pronto! en {nearestStopDisplayMinutes} min
-                </span>
-              ) : (
-                <span className="text-xs text-zinc-300">
-                  Próximo camión{" "}
-                  <span className="font-semibold text-white">
-                    {formatMinutesRelative(nearestStop.minutesUntilArrival)}
-                  </span>
-                </span>
-              )}
-            </div>
-          </motion.button>
-        )}
-      </motion.section>
-
-      {/* Próximas salidas */}
-      <motion.section
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut", delay: 0.06 }}
-      >
-        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">
-          Próximas salidas
-          {directionLabel && (
-            <span className="ml-2 normal-case text-zinc-600">
-              · {directionLabel}
-            </span>
-          )}
-        </h3>
-
-        {showLoading ? (
+      {/* Favoritos */}
+      {favoriteRoutes.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        >
+          <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+            <Star className="w-3 h-3 text-amber-400" fill="currentColor" />
+            Favoritos
+          </h3>
           <div className="flex flex-col gap-2">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="h-14 rounded-xl bg-white/5 animate-pulse"
-              />
+            {favoriteRoutes.map((route) => (
+              <motion.button
+                key={route.id}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                onClick={() => setActiveRouteId(route.id)}
+                className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
+                  route.id === activeRouteId
+                    ? "border-amber-500/30 bg-amber-500/8"
+                    : "border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900"
+                }`}
+              >
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                  <MapPin size={14} className="text-amber-400" />
+                </div>
+                <p className="text-sm font-medium text-white truncate flex-1">
+                  {route.name}
+                </p>
+                <ChevronRight size={14} className="text-zinc-600 shrink-0" />
+              </motion.button>
             ))}
           </div>
-        ) : upcomingDepartures.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4 text-center"
-          >
-            {!hasServiceInDirection ? (
+        </motion.section>
+      )}
+
+      {/* Nearest stop — only useful when there's active or upcoming service */}
+      {(showLoading ||
+        activeBusCount > 0 ||
+        (nextDeparture !== null && hasServiceInDirection)) && (
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        >
+          <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">
+            Tu parada más cercana
+          </h3>
+          {!userLocation ? (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4 text-center">
+              <MapPin size={16} className="text-zinc-600 mx-auto mb-1.5" />
               <p className="text-xs text-zinc-500">
-                Hoy no hay salidas programadas {serviceScopeLabel}
+                Activa tu ubicación para ver tu parada más cercana
               </p>
-            ) : nextDeparture ? (
-              <p className="text-xs text-zinc-500">
-                La próxima salida es a las{" "}
-                {formatTime(nextDeparture.departureTime)}
-              </p>
-            ) : (
-              <p className="text-xs text-zinc-500">Ya no quedan salidas hoy</p>
+            </div>
+          ) : showLoading ? (
+            <div className="h-20 rounded-xl bg-white/5 animate-pulse" />
+          ) : !nearestStop ? (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4 text-center">
+              <p className="text-xs text-zinc-500">No hay paradas cercanas</p>
+            </div>
+          ) : (
+            <motion.button
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              onClick={() =>
+                focusStopOnMap(nearestStop.routeId, nearestStop.stopId)
+              }
+              className="w-full text-left flex flex-col gap-2 px-4 py-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
+                  <MapPin size={16} className="text-emerald-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">
+                    {nearestStop.stopName}
+                  </p>
+                  <p className="text-xs text-zinc-500 truncate">
+                    {formatDistance(nearestStop.distanceMeters)} ·{" "}
+                    {nearestStop.routeName}
+                  </p>
+                </div>
+                <ChevronRight size={14} className="text-zinc-600 shrink-0" />
+              </div>
+              <div className="flex items-center gap-2 pl-12">
+                <Timer size={12} className="text-emerald-400 shrink-0" />
+                {nearestStop.minutesUntilArrival === null ? (
+                  <span className="text-xs text-zinc-500">
+                    Ya no pasan camiones hoy por esta parada
+                  </span>
+                ) : nearestStopDisplayMinutes === 0 ? (
+                  <span className="text-xs font-semibold text-emerald-400">
+                    Llegando ahora
+                  </span>
+                ) : nearestStopDisplayMinutes !== null &&
+                  nearestStopDisplayMinutes <= 5 ? (
+                  <span className="text-xs font-semibold text-orange-400">
+                    ¡Pronto! en {nearestStopDisplayMinutes} min
+                  </span>
+                ) : (
+                  <span className="text-xs text-zinc-300">
+                    Próximo camión{" "}
+                    <span className="font-semibold text-white">
+                      {formatMinutesRelative(nearestStop.minutesUntilArrival)}
+                    </span>
+                  </span>
+                )}
+              </div>
+            </motion.button>
+          )}
+        </motion.section>
+      )}
+
+      {/* Próximas salidas — hide when no service today and no upcoming departures */}
+      {(showLoading ||
+        upcomingDepartures.length > 0 ||
+        nextDeparture !== null) && (
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut", delay: 0.06 }}
+        >
+          <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">
+            Próximas salidas
+            {directionLabel && (
+              <span className="ml-2 normal-case text-zinc-600">
+                · {directionLabel}
+              </span>
             )}
-          </motion.div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {upcomingDepartures.map((dep, i) => {
-              const displayMinutes = Math.max(0, Math.ceil(dep.minutesUntil));
-              const isSoon = displayMinutes > 0 && displayMinutes <= 5;
-              return (
-                <motion.div
-                  key={`${dep.routeId}-${dep.departureTime}`}
-                  initial={{ opacity: 0, x: -15 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.06 }}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
-                    isSoon
-                      ? "border-orange-500/30 bg-orange-500/8"
-                      : "border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900"
-                  }`}
-                >
-                  <div
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                      isSoon ? "bg-orange-500/15" : "bg-white/5"
+          </h3>
+
+          {showLoading ? (
+            <div className="flex flex-col gap-2">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="h-14 rounded-xl bg-white/5 animate-pulse"
+                />
+              ))}
+            </div>
+          ) : upcomingDepartures.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4 text-center"
+            >
+              {!hasServiceInDirection ? (
+                <p className="text-xs text-zinc-500">
+                  Hoy no hay salidas programadas {serviceScopeLabel}
+                </p>
+              ) : nextDeparture ? (
+                <p className="text-xs text-zinc-500">
+                  La próxima salida es a las{" "}
+                  {formatTime(nextDeparture.departureTime)}
+                </p>
+              ) : (
+                <p className="text-xs text-zinc-500">
+                  Ya no quedan salidas hoy
+                </p>
+              )}
+            </motion.div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {upcomingDepartures.map((dep, i) => {
+                const displayMinutes = Math.max(0, Math.ceil(dep.minutesUntil));
+                const isSoon = displayMinutes > 0 && displayMinutes <= 5;
+                return (
+                  <motion.div
+                    key={`${dep.routeId}-${dep.departureTime}`}
+                    initial={{ opacity: 0, x: -15 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.06 }}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
+                      isSoon
+                        ? "border-orange-500/30 bg-orange-500/8"
+                        : "border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900"
                     }`}
                   >
-                    <Bus
-                      size={15}
-                      className={isSoon ? "text-orange-400" : "text-zinc-300"}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">
-                      {dep.routeName}
-                    </p>
-                    <p className="text-xs text-zinc-500">
-                      Sale a las {formatTime(dep.departureTime)}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    {displayMinutes === 0 ? (
-                      <span className="text-xs font-semibold text-emerald-400">
-                        Ahora
-                      </span>
-                    ) : isSoon ? (
-                      <span className="text-xs font-semibold text-orange-400">
-                        ¡Pronto! {displayMinutes} min
-                      </span>
-                    ) : (
-                      <span className="text-xs font-semibold text-white">
-                        {formatMinutesRelative(dep.minutesUntil)}
-                      </span>
-                    )}
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
-      </motion.section>
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                        isSoon ? "bg-orange-500/15" : "bg-white/5"
+                      }`}
+                    >
+                      <Bus
+                        size={15}
+                        className={isSoon ? "text-orange-400" : "text-zinc-300"}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">
+                        {dep.routeName}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        Sale a las {formatTime(dep.departureTime)}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      {displayMinutes === 0 ? (
+                        <span className="text-xs font-semibold text-emerald-400">
+                          Ahora
+                        </span>
+                      ) : isSoon ? (
+                        <span className="text-xs font-semibold text-orange-400">
+                          ¡Pronto! {displayMinutes} min
+                        </span>
+                      ) : (
+                        <span className="text-xs font-semibold text-white">
+                          {formatMinutesRelative(dep.minutesUntil)}
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </motion.section>
+      )}
 
-      {/* Direction indicator */}
-      {suggestedDirection && (
+      {/* Direction indicator — only show when there's active or upcoming service */}
+      {suggestedDirection && (activeBusCount > 0 || nextDeparture !== null) && (
         <motion.section
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -528,10 +585,13 @@ export default function HomeTab() {
             <AlertTriangle size={15} className="text-orange-400 shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white">
-                {overrideCount} ruta{overrideCount !== 1 ? "s" : ""} con desvío temporal
+                {overrideCount} ruta{overrideCount !== 1 ? "s" : ""} con desvío
+                temporal
               </p>
               {firstOverrideRoute && (
-                <p className="text-xs text-zinc-500 truncate">{firstOverrideRoute}</p>
+                <p className="text-xs text-zinc-500 truncate">
+                  {firstOverrideRoute}
+                </p>
               )}
             </div>
             <ChevronRight size={14} className="text-zinc-600 shrink-0" />
@@ -547,7 +607,12 @@ export default function HomeTab() {
             onClick={() => navigateToTab("alerts")}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
-            transition={{ delay: 0.15, type: "spring", stiffness: 400, damping: 25 }}
+            transition={{
+              delay: 0.15,
+              type: "spring",
+              stiffness: 400,
+              damping: 25,
+            }}
             className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors cursor-pointer ${
               urgentCount && urgentCount > 0
                 ? "border-orange-500/30 bg-orange-500/8"

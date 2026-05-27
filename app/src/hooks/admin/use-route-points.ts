@@ -1,8 +1,8 @@
 "use client";
 
 import { supabase } from "@lib/supabase/client";
-import { useQuery } from "@tanstack/react-query";
 import type { RoutePoint } from "@providers/map-provider";
+import { useQuery } from "@tanstack/react-query";
 
 async function fetchRoutePoints(routeId: string): Promise<RoutePoint[]> {
   const { data, error } = await supabase

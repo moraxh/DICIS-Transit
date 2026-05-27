@@ -46,7 +46,8 @@ function CinematicFlight() {
 export default function PublicMap({ className }: { className?: string }) {
   const [mounted, setMounted] = useState(false);
   const [hasFlown, setHasFlown] = useState(false);
-  const { routes, activeRouteId, isLoading, error, temporaryOverrides } = useMapData();
+  const { routes, activeRouteId, isLoading, error, temporaryOverrides } =
+    useMapData();
 
   useEffect(() => {
     setMounted(true);
@@ -105,7 +106,8 @@ export default function PublicMap({ className }: { className?: string }) {
                   route={route}
                   isHighlight={true}
                   temporaryOverride={
-                    temporaryOverrides.find((o) => o.route_id === route.id) ?? null
+                    temporaryOverrides.find((o) => o.route_id === route.id) ??
+                    null
                   }
                 />
               ) : null,

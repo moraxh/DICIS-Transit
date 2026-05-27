@@ -9,7 +9,10 @@ export function usePendingReportsCount() {
 
   useEffect(() => {
     function update() {
-      const kpis = queryClient.getQueryData<{ pendingReports: number }>(["admin", "kpis"]);
+      const kpis = queryClient.getQueryData<{ pendingReports: number }>([
+        "admin",
+        "kpis",
+      ]);
       if (kpis) setCount(kpis.pendingReports);
     }
 

@@ -2,8 +2,6 @@
 
 import { ReportDetailSheet } from "@components/admin/report-detail-sheet";
 import { StatusBadge } from "@components/admin/status-badge";
-import { Button } from "@components/ui/button";
-import { Checkbox } from "@components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,6 +12,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@components/ui/alert-dialog";
+import { Button } from "@components/ui/button";
+import { Checkbox } from "@components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,17 +37,17 @@ import {
   TableRow,
 } from "@components/ui/table";
 import { useActiveRoutes } from "@hooks/admin/use-active-routes";
+import type { Report, ReportStatus } from "@hooks/admin/use-reports";
 import {
   useBulkUpdateReportStatus,
   useReports,
   useUpdateReportStatus,
 } from "@hooks/admin/use-reports";
-import type { Report, ReportStatus } from "@hooks/admin/use-reports";
 import { cn } from "@lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { AnimatePresence, motion } from "motion/react";
 import { Filter, MoreHorizontal, TriangleAlert, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
@@ -88,7 +88,6 @@ function CredibilityBadge({ score }: { score: number }) {
     </span>
   );
 }
-
 
 const rowVariants = {
   hidden: { opacity: 0, y: 8 },
@@ -144,7 +143,8 @@ export default function AdminReportsPage() {
   });
 
   const hasActiveFilters = filterRoute || filterType || filterStatus;
-  const allSelected = filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id));
+  const allSelected =
+    filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id));
 
   function toggleOne(id: string) {
     setSelectedIds((prev) => {
@@ -187,7 +187,9 @@ export default function AdminReportsPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight">Reportes</h1>
+          <h1 className="text-xl font-bold text-white tracking-tight">
+            Reportes
+          </h1>
           <p className="text-xs text-zinc-500 mt-0.5">
             {filtered.length} de {reports.length} reportes
             {hasActiveFilters && (
@@ -217,7 +219,10 @@ export default function AdminReportsPage() {
           <span className="text-xs font-medium">Filtrar:</span>
         </div>
 
-        <Select value={filterRoute} onValueChange={(v) => setFilter("route", v ?? "")}>
+        <Select
+          value={filterRoute}
+          onValueChange={(v) => setFilter("route", v ?? "")}
+        >
           <SelectTrigger className="h-8 text-xs w-auto min-w-36 border-zinc-800 bg-zinc-900/60">
             <SelectValue placeholder="Todas las rutas" />
           </SelectTrigger>
@@ -231,7 +236,10 @@ export default function AdminReportsPage() {
           </SelectContent>
         </Select>
 
-        <Select value={filterType} onValueChange={(v) => setFilter("type", v ?? "")}>
+        <Select
+          value={filterType}
+          onValueChange={(v) => setFilter("type", v ?? "")}
+        >
           <SelectTrigger className="h-8 text-xs w-auto min-w-36 border-zinc-800 bg-zinc-900/60">
             <SelectValue placeholder="Todos los tipos" />
           </SelectTrigger>
@@ -245,7 +253,10 @@ export default function AdminReportsPage() {
           </SelectContent>
         </Select>
 
-        <Select value={filterStatus} onValueChange={(v) => setFilter("status", v ?? "")}>
+        <Select
+          value={filterStatus}
+          onValueChange={(v) => setFilter("status", v ?? "")}
+        >
           <SelectTrigger className="h-8 text-xs w-auto min-w-36 border-zinc-800 bg-zinc-900/60">
             <SelectValue placeholder="Todos los estados" />
           </SelectTrigger>
@@ -294,9 +305,12 @@ export default function AdminReportsPage() {
             </span>
             <div className="h-4 w-px bg-zinc-800" />
             <div className="flex items-center gap-1.5">
-              {(["verified", "spam", "rejected", "pending"] as ReportStatus[]).map((action) => {
+              {(
+                ["verified", "spam", "rejected", "pending"] as ReportStatus[]
+              ).map((action) => {
                 const colorMap = {
-                  verified: "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25",
+                  verified:
+                    "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25",
                   spam: "bg-orange-500/15 text-orange-400 hover:bg-orange-500/25",
                   rejected: "bg-red-500/15 text-red-400 hover:bg-red-500/25",
                   pending: "bg-zinc-700/60 text-zinc-300 hover:bg-zinc-700",
@@ -340,7 +354,11 @@ export default function AdminReportsPage() {
               key={i}
               className="h-12 rounded-xl bg-white/5"
               animate={{ opacity: [0.4, 0.7, 0.4] }}
-              transition={{ duration: 1.5, repeat: Number.POSITIVE_INFINITY, delay: i * 0.1 }}
+              transition={{
+                duration: 1.5,
+                repeat: Number.POSITIVE_INFINITY,
+                delay: i * 0.1,
+              }}
             />
           ))}
         </div>
@@ -356,7 +374,9 @@ export default function AdminReportsPage() {
           <div className="text-center">
             <p className="text-sm text-zinc-400 font-medium">Sin reportes</p>
             <p className="text-xs text-zinc-600 mt-0.5">
-              {hasActiveFilters ? "Prueba con otros filtros" : "No hay reportes registrados"}
+              {hasActiveFilters
+                ? "Prueba con otros filtros"
+                : "No hay reportes registrados"}
             </p>
           </div>
           {hasActiveFilters && (
@@ -422,7 +442,10 @@ export default function AdminReportsPage() {
                         selected ? "bg-white/[0.04]" : "hover:bg-white/[0.02]",
                       )}
                     >
-                      <TableCell className="pl-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <TableCell
+                        className="pl-4 py-3"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <Checkbox
                           checked={selected}
                           onCheckedChange={() => toggleOne(report.id)}
@@ -432,11 +455,12 @@ export default function AdminReportsPage() {
                         <span className="text-zinc-200 font-medium text-sm">
                           {typeLabels[report.report_type] ?? report.report_type}
                         </span>
-                        {report.report_type === "delay" && report.delay_mins && (
-                          <span className="text-zinc-600 text-xs ml-1.5">
-                            {report.delay_mins}m
-                          </span>
-                        )}
+                        {report.report_type === "delay" &&
+                          report.delay_mins && (
+                            <span className="text-zinc-600 text-xs ml-1.5">
+                              {report.delay_mins}m
+                            </span>
+                          )}
                       </TableCell>
                       <TableCell className="text-zinc-400 py-3 text-sm">
                         {routeName(report.route_id)}
@@ -448,7 +472,9 @@ export default function AdminReportsPage() {
                         })}
                       </TableCell>
                       <TableCell className="py-3">
-                        <StatusBadge variant={cfg.badge}>{cfg.label}</StatusBadge>
+                        <StatusBadge variant={cfg.badge}>
+                          {cfg.label}
+                        </StatusBadge>
                       </TableCell>
                       <TableCell className="py-3 hidden md:table-cell">
                         <CredibilityBadge score={report.credibility_score} />
@@ -474,7 +500,10 @@ export default function AdminReportsPage() {
                             <DropdownMenuItem
                               disabled={report.status === "verified"}
                               onClick={() =>
-                                updateStatus.mutate({ id: report.id, status: "verified" })
+                                updateStatus.mutate({
+                                  id: report.id,
+                                  status: "verified",
+                                })
                               }
                             >
                               Verificar
@@ -482,7 +511,10 @@ export default function AdminReportsPage() {
                             <DropdownMenuItem
                               disabled={report.status === "pending"}
                               onClick={() =>
-                                updateStatus.mutate({ id: report.id, status: "pending" })
+                                updateStatus.mutate({
+                                  id: report.id,
+                                  status: "pending",
+                                })
                               }
                             >
                               Marcar pendiente
@@ -491,7 +523,10 @@ export default function AdminReportsPage() {
                             <DropdownMenuItem
                               disabled={report.status === "spam"}
                               onClick={() =>
-                                updateStatus.mutate({ id: report.id, status: "spam" })
+                                updateStatus.mutate({
+                                  id: report.id,
+                                  status: "spam",
+                                })
                               }
                             >
                               Marcar spam
@@ -500,7 +535,10 @@ export default function AdminReportsPage() {
                               variant="destructive"
                               disabled={report.status === "rejected"}
                               onClick={() =>
-                                updateStatus.mutate({ id: report.id, status: "rejected" })
+                                updateStatus.mutate({
+                                  id: report.id,
+                                  status: "rejected",
+                                })
                               }
                             >
                               Rechazar
@@ -518,23 +556,31 @@ export default function AdminReportsPage() {
       )}
 
       {/* Bulk confirm */}
-      <AlertDialog open={bulkAction !== null} onOpenChange={(o) => !o && setBulkAction(null)}>
+      <AlertDialog
+        open={bulkAction !== null}
+        onOpenChange={(o) => !o && setBulkAction(null)}
+      >
         <AlertDialogContent size="sm">
           <AlertDialogHeader>
             <AlertDialogTitle>
               {bulkAction ? bulkActionLabels[bulkAction] : ""}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Se actualizarán {selectedIds.size} reporte{selectedIds.size > 1 ? "s" : ""}.
+              Se actualizarán {selectedIds.size} reporte
+              {selectedIds.size > 1 ? "s" : ""}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setBulkAction(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setBulkAction(null)}>
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={executeBulkUpdate}
               disabled={bulkUpdate.isPending}
               variant={
-                bulkAction === "rejected" || bulkAction === "spam" ? "destructive" : "default"
+                bulkAction === "rejected" || bulkAction === "spam"
+                  ? "destructive"
+                  : "default"
               }
             >
               Confirmar

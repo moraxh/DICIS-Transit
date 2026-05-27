@@ -1,11 +1,11 @@
 "use client";
 
+import { usePendingReportsCount } from "@hooks/admin/use-realtime-reports";
+import { supabase } from "@lib/supabase/client";
+import { cn } from "@lib/utils";
 import { useAuth } from "@providers/auth-provider";
 import { QueryProvider } from "@providers/query-provider";
 import { RealtimeProvider } from "@providers/realtime-provider";
-import { usePendingReportsCount } from "@hooks/admin/use-realtime-reports";
-import { cn } from "@lib/utils";
-import { AnimatePresence, motion } from "motion/react";
 import {
   Bus,
   LayoutDashboard,
@@ -17,7 +17,7 @@ import {
   PanelLeftOpen,
   TriangleAlert,
 } from "lucide-react";
-import { supabase } from "@lib/supabase/client";
+import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -25,8 +25,18 @@ import { useEffect, useState } from "react";
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/notices", label: "Avisos", icon: Megaphone, exact: false },
-  { href: "/admin/modifications", label: "Desvíos", icon: MapIcon, exact: false },
-  { href: "/admin/reports", label: "Reportes", icon: TriangleAlert, exact: false },
+  {
+    href: "/admin/modifications",
+    label: "Desvíos",
+    icon: MapIcon,
+    exact: false,
+  },
+  {
+    href: "/admin/reports",
+    label: "Reportes",
+    icon: TriangleAlert,
+    exact: false,
+  },
 ];
 
 function Sidebar({
@@ -74,7 +84,9 @@ function Sidebar({
               <p className="text-sm font-bold text-white tracking-tight truncate leading-none">
                 DICIS Transit
               </p>
-              <p className="text-[10px] text-zinc-500 font-medium mt-0.5">Panel de administración</p>
+              <p className="text-[10px] text-zinc-500 font-medium mt-0.5">
+                Panel de administración
+              </p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -108,7 +120,10 @@ function Sidebar({
               )}
               <Icon
                 size={16}
-                className={cn("shrink-0 relative z-10", active ? "text-white" : "text-zinc-500")}
+                className={cn(
+                  "shrink-0 relative z-10",
+                  active ? "text-white" : "text-zinc-500",
+                )}
               />
               <AnimatePresence>
                 {expanded && (
@@ -198,7 +213,11 @@ function Sidebar({
           )}
           title={expanded ? "Colapsar" : "Expandir"}
         >
-          {expanded ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+          {expanded ? (
+            <PanelLeftClose size={16} />
+          ) : (
+            <PanelLeftOpen size={16} />
+          )}
           <AnimatePresence>
             {expanded && (
               <motion.span
@@ -237,13 +256,21 @@ function AdminShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white flex">
-      <Sidebar pendingReports={pendingReports} expanded={expanded} onToggle={handleToggle} />
+      <Sidebar
+        pendingReports={pendingReports}
+        expanded={expanded}
+        onToggle={handleToggle}
+      />
       <main className="flex-1 overflow-auto min-w-0">{children}</main>
     </div>
   );
 }
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { userType, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();

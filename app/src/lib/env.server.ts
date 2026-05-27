@@ -28,7 +28,10 @@ function validateServerEnv() {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error("Invalid server environment variables:", error.flatten().fieldErrors);
+      console.error(
+        "Invalid server environment variables:",
+        error.flatten().fieldErrors,
+      );
     }
     throw new Error("Invalid server environment variables");
   }

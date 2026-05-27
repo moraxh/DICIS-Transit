@@ -8,7 +8,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@components/ui/sheet";
-import type { CredibilityFactors, Report, ReportStatus } from "@hooks/admin/use-reports";
+import type {
+  CredibilityFactors,
+  Report,
+  ReportStatus,
+} from "@hooks/admin/use-reports";
 import { useUpdateReportStatus } from "@hooks/admin/use-reports";
 import { supabase } from "@lib/supabase/client";
 import { cn } from "@lib/utils";
@@ -74,7 +78,11 @@ function DetailRow({
         <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-0.5">
           {label}
         </p>
-        <div className={cn("text-sm text-zinc-200", mono && "font-mono text-xs")}>{value}</div>
+        <div
+          className={cn("text-sm text-zinc-200", mono && "font-mono text-xs")}
+        >
+          {value}
+        </div>
       </div>
     </div>
   );
@@ -102,7 +110,11 @@ function CredibilityPanel({
         : "bg-red-500";
 
   const scoreLabel =
-    score >= 75 ? "Alta confianza" : score >= 50 ? "Confianza moderada" : "Confianza baja";
+    score >= 75
+      ? "Alta confianza"
+      : score >= 50
+        ? "Confianza moderada"
+        : "Confianza baja";
 
   return (
     <div className="border-t border-zinc-800/60 px-5 py-4">
@@ -111,7 +123,12 @@ function CredibilityPanel({
         <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold">
           Credibilidad del reporte
         </p>
-        <span className={cn("ml-auto text-sm font-bold font-mono tabular-nums", scoreColor)}>
+        <span
+          className={cn(
+            "ml-auto text-sm font-bold font-mono tabular-nums",
+            scoreColor,
+          )}
+        >
           {score}
         </span>
       </div>
@@ -146,7 +163,8 @@ function CredibilityPanel({
       </div>
 
       <p className="text-[10px] text-zinc-700 mt-3 leading-relaxed">
-        La credibilidad se calcula automáticamente. No puede ser modificada manualmente.
+        La credibilidad se calcula automáticamente. No puede ser modificada
+        manualmente.
       </p>
     </div>
   );
@@ -165,7 +183,9 @@ function FactorRow({
     <div className="flex items-center gap-2 py-1.5 border-b border-zinc-800/40 last:border-0">
       <div className="flex-1 min-w-0">
         <p className="text-xs text-zinc-300 font-medium">{label}</p>
-        <p className="text-[10px] text-zinc-600 leading-relaxed">{description}</p>
+        <p className="text-[10px] text-zinc-600 leading-relaxed">
+          {description}
+        </p>
       </div>
       <span
         className={cn(
@@ -217,26 +237,34 @@ export function ReportDetailSheet({
     updateStatus.mutate({ id: report.id, status });
   }
 
-  const mapsUrl =
-    stop
-      ? `https://www.google.com/maps?q=${stop.latitude},${stop.longitude}`
-      : null;
+  const mapsUrl = stop
+    ? `https://www.google.com/maps?q=${stop.latitude},${stop.longitude}`
+    : null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-md flex flex-col gap-0 p-0"
+      >
         <SheetHeader className="px-5 pt-5 pb-4 border-b border-zinc-800/60">
           <div className="flex items-center gap-2 mb-1">
             <StatusBadge variant={cfg.badge}>{cfg.label}</StatusBadge>
             {report.report_type === "delay" && report.delay_mins && (
-              <span className="text-xs text-zinc-500">{report.delay_mins} min de retraso</span>
+              <span className="text-xs text-zinc-500">
+                {report.delay_mins} min de retraso
+              </span>
             )}
           </div>
           <SheetTitle className="text-base">
             {typeLabels[report.report_type] ?? report.report_type}
           </SheetTitle>
           <p className="text-xs text-zinc-500">
-            {format(new Date(report.created_at), "EEEE d 'de' MMMM, yyyy · HH:mm", { locale: es })}
+            {format(
+              new Date(report.created_at),
+              "EEEE d 'de' MMMM, yyyy · HH:mm",
+              { locale: es },
+            )}
           </p>
         </SheetHeader>
 
@@ -296,7 +324,11 @@ export function ReportDetailSheet({
           <DetailRow
             icon={Clock}
             label="Reportado"
-            value={format(new Date(report.created_at), "HH:mm:ss · d MMM yyyy", { locale: es })}
+            value={format(
+              new Date(report.created_at),
+              "HH:mm:ss · d MMM yyyy",
+              { locale: es },
+            )}
           />
         </div>
 
@@ -312,20 +344,23 @@ export function ReportDetailSheet({
             Cambiar estado
           </p>
           <div className="flex flex-wrap gap-2">
-            {(Object.entries(statusConfig) as [ReportStatus, typeof statusConfig[ReportStatus]][]).map(
-              ([value, s]) => (
-                <Button
-                  key={value}
-                  size="sm"
-                  variant={report.status === value ? "secondary" : "outline"}
-                  disabled={report.status === value || updateStatus.isPending}
-                  onClick={() => handleStatusChange(value)}
-                  className="text-xs"
-                >
-                  {s.label}
-                </Button>
-              ),
-            )}
+            {(
+              Object.entries(statusConfig) as [
+                ReportStatus,
+                (typeof statusConfig)[ReportStatus],
+              ][]
+            ).map(([value, s]) => (
+              <Button
+                key={value}
+                size="sm"
+                variant={report.status === value ? "secondary" : "outline"}
+                disabled={report.status === value || updateStatus.isPending}
+                onClick={() => handleStatusChange(value)}
+                className="text-xs"
+              >
+                {s.label}
+              </Button>
+            ))}
           </div>
         </div>
       </SheetContent>

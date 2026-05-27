@@ -33,7 +33,10 @@ export function RouteHealthPanel({ routes, isLoading }: RouteHealthPanelProps) {
     return (
       <div className="flex flex-col gap-2">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-10 rounded-lg bg-zinc-800/50 animate-pulse" />
+          <div
+            key={i}
+            className="h-10 rounded-lg bg-zinc-800/50 animate-pulse"
+          />
         ))}
       </div>
     );

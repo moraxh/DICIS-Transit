@@ -8,7 +8,10 @@ export default function getIPFromNextRequest(
   // leftmost, which is client-controlled and trivially spoofable.
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) {
-    const ips = forwarded.split(",").map((s) => s.trim()).filter(Boolean);
+    const ips = forwarded
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     const ip = ips[ips.length - 1];
     if (ip === "::1") return "127.0.0.1";
     return ip || undefined;

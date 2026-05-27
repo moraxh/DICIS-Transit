@@ -35,10 +35,18 @@ const categoryConfig: Record<
   delay: { label: "Retraso", icon: Clock, color: "text-yellow-400" },
   detour: { label: "Desvío", icon: Navigation, color: "text-orange-400" },
   cancellation: { label: "Cancelación", icon: Ban, color: "text-red-400" },
-  schedule_change: { label: "Cambio de horario", icon: CalendarClock, color: "text-blue-400" },
+  schedule_change: {
+    label: "Cambio de horario",
+    icon: CalendarClock,
+    color: "text-blue-400",
+  },
   incident: { label: "Incidente", icon: AlertTriangle, color: "text-red-500" },
   info: { label: "Información", icon: Info, color: "text-sky-400" },
-  maintenance: { label: "Mantenimiento", icon: Construction, color: "text-zinc-400" },
+  maintenance: {
+    label: "Mantenimiento",
+    icon: Construction,
+    color: "text-zinc-400",
+  },
 };
 
 const priorityConfig = {
@@ -69,7 +77,8 @@ const priorityConfig = {
 };
 
 export default function AlertsTab() {
-  const { reportCounts, notices, temporaryOverrides, routes, alertsLoading } = useMapData();
+  const { reportCounts, notices, temporaryOverrides, routes, alertsLoading } =
+    useMapData();
 
   const routeNames = Object.fromEntries(routes.map((r) => [r.id, r.name]));
 
@@ -106,8 +115,12 @@ export default function AlertsTab() {
           >
             <Radio className="text-emerald-400" size={22} />
           </motion.div>
-          <p className="text-sm font-medium text-white/80">Sin avisos activos</p>
-          <p className="text-xs text-zinc-500">El servicio opera con normalidad</p>
+          <p className="text-sm font-medium text-white/80">
+            Sin avisos activos
+          </p>
+          <p className="text-xs text-zinc-500">
+            El servicio opera con normalidad
+          </p>
         </motion.div>
       )}
 
@@ -135,17 +148,27 @@ export default function AlertsTab() {
                     initial={{ opacity: 0, x: -15 }}
                     animate={{ opacity: 1, x: 0 }}
                     whileHover={{ scale: 1.01, x: 2 }}
-                    transition={{ delay: i * 0.05, type: "spring", stiffness: 400, damping: 25 }}
+                    transition={{
+                      delay: i * 0.05,
+                      type: "spring",
+                      stiffness: 400,
+                      damping: 25,
+                    }}
                     className={`rounded-xl border p-4 ${cfg.bg}`}
                   >
                     <div className="flex items-start gap-3">
-                      <PriorityIcon className={`shrink-0 mt-0.5 ${cfg.color}`} size={15} />
+                      <PriorityIcon
+                        className={`shrink-0 mt-0.5 ${cfg.color}`}
+                        size={15}
+                      />
                       <div className="flex-1 min-w-0">
                         {/* Category */}
                         {catCfg && CategoryIcon && (
                           <div className="flex items-center gap-1 mb-1">
                             <CategoryIcon size={9} className={catCfg.color} />
-                            <span className={`text-[9px] font-semibold uppercase tracking-wide ${catCfg.color}`}>
+                            <span
+                              className={`text-[9px] font-semibold uppercase tracking-wide ${catCfg.color}`}
+                            >
                               {catCfg.label}
                             </span>
                           </div>
@@ -156,13 +179,17 @@ export default function AlertsTab() {
                           <span className="text-sm font-semibold text-white leading-tight">
                             {notice.title}
                           </span>
-                          <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full bg-black/20 ${cfg.color}`}>
+                          <span
+                            className={`text-xs font-medium px-1.5 py-0.5 rounded-full bg-black/20 ${cfg.color}`}
+                          >
                             {cfg.label}
                           </span>
                         </div>
 
                         {/* Content */}
-                        <p className="text-xs text-zinc-400 leading-relaxed">{notice.content}</p>
+                        <p className="text-xs text-zinc-400 leading-relaxed">
+                          {notice.content}
+                        </p>
 
                         {/* Affected routes */}
                         {affectedRoutes.length > 0 && (
@@ -185,20 +212,26 @@ export default function AlertsTab() {
                             <p className="text-[9px] text-zinc-600 flex items-center gap-1">
                               <Clock size={8} />
                               Desde{" "}
-                              {new Date(notice.start_at).toLocaleTimeString("es-MX", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {new Date(notice.start_at).toLocaleTimeString(
+                                "es-MX",
+                                {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
                             </p>
                           )}
                           {notice.expires_at && (
                             <p className="text-[9px] text-zinc-600 flex items-center gap-1">
                               <CalendarClock size={8} />
                               Hasta{" "}
-                              {new Date(notice.expires_at).toLocaleDateString("es-MX", {
-                                day: "numeric",
-                                month: "short",
-                              })}
+                              {new Date(notice.expires_at).toLocaleDateString(
+                                "es-MX",
+                                {
+                                  day: "numeric",
+                                  month: "short",
+                                },
+                              )}
                             </p>
                           )}
                         </div>
@@ -224,11 +257,19 @@ export default function AlertsTab() {
                 initial={{ opacity: 0, x: -15 }}
                 animate={{ opacity: 1, x: 0 }}
                 whileHover={{ scale: 1.01, x: 2 }}
-                transition={{ delay: i * 0.05, type: "spring", stiffness: 400, damping: 25 }}
+                transition={{
+                  delay: i * 0.05,
+                  type: "spring",
+                  stiffness: 400,
+                  damping: 25,
+                }}
                 className="rounded-xl border border-orange-500/20 bg-orange-500/10 p-4"
               >
                 <div className="flex items-start gap-3">
-                  <Megaphone className="shrink-0 mt-0.5 text-orange-400" size={16} />
+                  <Megaphone
+                    className="shrink-0 mt-0.5 text-orange-400"
+                    size={16}
+                  />
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-white leading-relaxed">
                       {getRouteName(override.route_id)}
@@ -238,12 +279,16 @@ export default function AlertsTab() {
                     </p>
                     <p className="text-xs text-zinc-500 mt-1.5">
                       Activo desde{" "}
-                      {new Date(override.valid_from).toLocaleDateString("es-MX")}
+                      {new Date(override.valid_from).toLocaleDateString(
+                        "es-MX",
+                      )}
                     </p>
                     {override.valid_to && (
                       <p className="text-xs text-zinc-500 mt-1">
                         Válido hasta{" "}
-                        {new Date(override.valid_to).toLocaleDateString("es-MX")}
+                        {new Date(override.valid_to).toLocaleDateString(
+                          "es-MX",
+                        )}
                       </p>
                     )}
                   </div>
@@ -266,7 +311,12 @@ export default function AlertsTab() {
                 initial={{ opacity: 0, x: -15 }}
                 animate={{ opacity: 1, x: 0 }}
                 whileHover={{ scale: 1.01, x: 2 }}
-                transition={{ delay: i * 0.05, type: "spring", stiffness: 400, damping: 25 }}
+                transition={{
+                  delay: i * 0.05,
+                  type: "spring",
+                  stiffness: 400,
+                  damping: 25,
+                }}
                 className="rounded-xl border border-red-500/20 bg-red-500/8 p-4"
               >
                 <div className="flex items-start gap-3">

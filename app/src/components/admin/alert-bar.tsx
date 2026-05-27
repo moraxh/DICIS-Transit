@@ -34,14 +34,18 @@ export function AlertBar({ alerts }: AlertBarProps) {
               size={13}
               className={cn(
                 "shrink-0",
-                alert.severity === "critical" ? "text-red-400" : "text-yellow-400",
+                alert.severity === "critical"
+                  ? "text-red-400"
+                  : "text-yellow-400",
               )}
             />
             <Link
               href={alert.link}
               className={cn(
                 "text-xs flex-1 hover:underline underline-offset-2",
-                alert.severity === "critical" ? "text-red-300" : "text-yellow-300",
+                alert.severity === "critical"
+                  ? "text-red-300"
+                  : "text-yellow-300",
               )}
             >
               {alert.message}
