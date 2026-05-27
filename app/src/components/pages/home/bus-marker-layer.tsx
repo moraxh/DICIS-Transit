@@ -1,5 +1,14 @@
-import { MarkerContent, MarkerTooltip, MapMarker } from "@components/ui/map";
+import { MapMarker, MarkerContent, MarkerTooltip } from "@components/ui/map";
 import { useRouteGeometry } from "@hooks/use-route-geometry";
+import {
+  bearingDeg,
+  buildCumulativeDistances,
+  buildStopRoadIndices,
+  type Coord,
+  pointAheadOnPath,
+  pointAlongSegment,
+  segDist,
+} from "@lib/bus-path-utils";
 import {
   formatTime,
   getActiveBuses,
@@ -7,97 +16,36 @@ import {
 } from "@lib/schedule-utils";
 import type { RouteData } from "@providers/map-provider";
 import { BusFront } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import type MapLibreGL from "maplibre-gl";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-function segDist(a: [number, number], b: [number, number]): number {
-  return Math.sqrt((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2);
+interface BusState {
+  position: Coord;
+  heading: number;
 }
 
-function nearestPathIndex(
-  path: [number, number][],
-  lat: number,
-  lng: number,
-): number {
-  let bestIdx = 0;
-  let bestD = Infinity;
-  for (let i = 0; i < path.length - 1; i++) {
-    const [x1, y1] = path[i];
-    const [x2, y2] = path[i + 1];
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const lenSq = dx * dx + dy * dy;
-    const t =
-      lenSq === 0
-        ? 0
-        : Math.max(0, Math.min(1, ((lat - x1) * dx + (lng - y1) * dy) / lenSq));
-    const d = (x1 + t * dx - lat) ** 2 + (y1 + t * dy - lng) ** 2;
-    if (d < bestD) {
-      bestD = d;
-      bestIdx = i;
-    }
-  }
-  return bestIdx;
-}
-
-function pointAlongPathSegment(
-  path: [number, number][],
-  startIdx: number,
-  endIdx: number,
-  fraction: number,
-): [number, number] {
-  if (startIdx === endIdx || endIdx < startIdx) return path[startIdx];
-
-  let totalLen = 0;
-  for (let i = startIdx; i < endIdx; i++) {
-    totalLen += segDist(path[i], path[i + 1]);
-  }
-  if (totalLen === 0) return path[startIdx];
-
-  const target = Math.max(0, Math.min(fraction, 1)) * totalLen;
-  let acc = 0;
-  for (let i = startIdx; i < endIdx; i++) {
-    const distance = segDist(path[i], path[i + 1]);
-    if (acc + distance >= target) {
-      const localT = distance === 0 ? 0 : (target - acc) / distance;
-      return [
-        path[i][0] + localT * (path[i + 1][0] - path[i][0]),
-        path[i][1] + localT * (path[i + 1][1] - path[i][1]),
-      ];
-    }
-    acc += distance;
-  }
-
-  return path[endIdx];
-}
-
-function bearingDeg(from: [number, number], to: [number, number]): number {
-  const phi1 = (from[0] * Math.PI) / 180;
-  const phi2 = (to[0] * Math.PI) / 180;
-  const deltaLambda = ((to[1] - from[1]) * Math.PI) / 180;
-  const y = Math.sin(deltaLambda) * Math.cos(phi2);
-  const x =
-    Math.cos(phi1) * Math.sin(phi2) -
-    Math.sin(phi1) * Math.cos(phi2) * Math.cos(deltaLambda);
-  const theta = Math.atan2(y, x);
-  return (90 - (theta * 180) / Math.PI + 360) % 360;
-}
-
-function computePositionAndHeading(
+/**
+ * Compute the mathematically correct position + heading at the current clock
+ * time. This is the "target" that the animation layer will smoothly approach.
+ */
+function computeTarget(
   departureTimeMins: number,
   namedPoints: RouteData["points"],
-  roadPath: [number, number][],
+  roadPath: Coord[],
+  cumDist: Float64Array,
   stopRoadIndices: number[],
-): { position: [number, number]; heading: number } {
+): BusState {
   const currentMins = getMexicoCurrentMins();
   const elapsedMins = currentMins - departureTimeMins;
 
+  // Find which stop-to-stop segment the bus is in.
   let segmentIndex = 0;
-  for (let index = 0; index < namedPoints.length - 1; index++) {
+  for (let i = 0; i < namedPoints.length - 1; i++) {
     if (
-      namedPoints[index].cumulative_minutes <= elapsedMins &&
-      elapsedMins <= namedPoints[index + 1].cumulative_minutes
+      namedPoints[i].cumulative_minutes <= elapsedMins &&
+      elapsedMins <= namedPoints[i + 1].cumulative_minutes
     ) {
-      segmentIndex = index;
+      segmentIndex = i;
       break;
     }
   }
@@ -116,37 +64,43 @@ function computePositionAndHeading(
     const segStart = stopRoadIndices[segmentIndex];
     const segEnd =
       stopRoadIndices[Math.min(segmentIndex + 1, stopRoadIndices.length - 1)];
-    const position = pointAlongPathSegment(
+
+    const { position, segmentIndex: pathSeg } = pointAlongSegment(
       roadPath,
+      cumDist,
       segStart,
       segEnd,
       progress,
     );
 
-    let aheadPoint = position;
-    for (
-      let i = Math.min(segStart + 1, roadPath.length - 1);
-      i <= segEnd;
-      i++
-    ) {
-      aheadPoint = roadPath[i];
-      if (segDist(position, aheadPoint) >= 0.0002) break;
-    }
+    // Look-ahead distance: 1% of segment span, minimum ~1m in degree units.
+    const spanDist = Math.max(
+      segDist(roadPath[segStart], roadPath[segEnd]),
+      0.00005,
+    );
+    const lookAhead = Math.max(spanDist * 0.01, 0.000009);
+    const ahead = pointAheadOnPath(
+      roadPath,
+      position,
+      pathSeg,
+      segEnd,
+      lookAhead,
+    );
 
     return {
       position,
       heading:
-        position[0] === aheadPoint[0] && position[1] === aheadPoint[1]
+        position[0] === ahead[0] && position[1] === ahead[1]
           ? 0
-          : bearingDeg(position, aheadPoint),
+          : bearingDeg(position, ahead),
     };
   }
 
-  const position: [number, number] = [
+  // Fallback: straight-line interpolation between named stops.
+  const position: Coord = [
     startStop.latitude + progress * (endStop.latitude - startStop.latitude),
     startStop.longitude + progress * (endStop.longitude - startStop.longitude),
   ];
-
   return {
     position,
     heading: bearingDeg(
@@ -163,6 +117,7 @@ function BusMarker({
   minutesUntilEnd,
   namedPoints,
   roadPath,
+  cumDist,
   stopRoadIndices,
   index,
 }: {
@@ -171,42 +126,72 @@ function BusMarker({
   departureTimeMins: number;
   minutesUntilEnd: number;
   namedPoints: RouteData["points"];
-  roadPath: [number, number][];
+  roadPath: Coord[];
+  cumDist: Float64Array;
   stopRoadIndices: number[];
   index: number;
 }) {
-  const [state, setState] = useState(() =>
-    computePositionAndHeading(
+  // Visual state — updated every animation frame.
+  const [visual, setVisual] = useState<BusState>(() =>
+    computeTarget(
       departureTimeMins,
       namedPoints,
       roadPath,
+      cumDist,
       stopRoadIndices,
     ),
   );
+  const markerRef = useRef<MapLibreGL.Marker | null>(null);
+  const headingRef = useRef<HTMLDivElement | null>(null);
+  const rafRef = useRef<number>(0);
+
+  const namedPointsRef = useRef(namedPoints);
+  const roadPathRef = useRef(roadPath);
+  const cumDistRef = useRef(cumDist);
+  const stopRoadIndicesRef = useRef(stopRoadIndices);
+  const depTimeMinsRef = useRef(departureTimeMins);
+
+  namedPointsRef.current = namedPoints;
+  roadPathRef.current = roadPath;
+  cumDistRef.current = cumDist;
+  stopRoadIndicesRef.current = stopRoadIndices;
+  depTimeMinsRef.current = departureTimeMins;
 
   useEffect(() => {
-    setState(
-      computePositionAndHeading(
-        departureTimeMins,
-        namedPoints,
-        roadPath,
-        stopRoadIndices,
-      ),
+    const initial = computeTarget(
+      depTimeMinsRef.current,
+      namedPointsRef.current,
+      roadPathRef.current,
+      cumDistRef.current,
+      stopRoadIndicesRef.current,
     );
+    setVisual(initial);
 
-    const interval = setInterval(() => {
-      setState(
-        computePositionAndHeading(
-          departureTimeMins,
-          namedPoints,
-          roadPath,
-          stopRoadIndices,
-        ),
+    const tick = () => {
+      const current = computeTarget(
+        depTimeMinsRef.current,
+        namedPointsRef.current,
+        roadPathRef.current,
+        cumDistRef.current,
+        stopRoadIndicesRef.current,
       );
-    }, 1000);
 
-    return () => clearInterval(interval);
-  }, [departureTimeMins, namedPoints, roadPath, stopRoadIndices]);
+      markerRef.current?.setLngLat([current.position[1], current.position[0]]);
+      if (headingRef.current) {
+        headingRef.current.style.transform = `rotate(${current.heading}deg)`;
+      }
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+    };
+    // Intentionally empty deps: all values accessed via refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const effectiveDirection = route.direction;
   const directionLabel =
@@ -222,8 +207,9 @@ function BusMarker({
 
   return (
     <MapMarker
-      longitude={state.position[1]}
-      latitude={state.position[0]}
+      ref={markerRef}
+      longitude={visual.position[1]}
+      latitude={visual.position[0]}
       offset={[0, 0]}
     >
       <MarkerContent>
@@ -238,15 +224,20 @@ function BusMarker({
             className={`absolute inset-[-6px] rounded-full ${rippleClass} animate-[busRipple_3s_ease-out_infinite]`}
           />
           <div
-            className="absolute inset-0 transition-transform duration-150"
-            style={{ transform: `rotate(${state.heading}deg)` }}
+            ref={headingRef}
+            className="relative z-10 will-change-transform"
+            style={{
+              transform: `rotate(${visual.heading}deg)`,
+              transformOrigin: "center center",
+            }}
           >
-            <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 border-x-[4px] border-b-[7px] border-x-transparent border-b-white/90" />
-          </div>
-          <div
-            className={`relative flex size-8 items-center justify-center rounded-lg border-[1.5px] text-white shadow-[0_0_0_3px_rgba(0,0,0,0.5),0_3px_10px_rgba(0,0,0,0.5)] ${accentClass}`}
-          >
-            <BusFront className="size-4" strokeWidth={2.5} />
+            <div className="absolute -top-3 left-1/2 h-0 w-0 -translate-x-1/2 border-x-[6px] border-b-[11px] border-x-transparent border-b-black/60 drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]" />
+            <div className="absolute -top-2.5 left-1/2 h-0 w-0 -translate-x-1/2 border-x-[5px] border-b-[9px] border-x-transparent border-b-white" />
+            <div
+              className={`relative flex size-8 items-center justify-center rounded-lg border-[1.5px] text-white shadow-[0_0_0_3px_rgba(0,0,0,0.5),0_3px_10px_rgba(0,0,0,0.5)] ${accentClass}`}
+            >
+              <BusFront className="size-4" strokeWidth={2.5} />
+            </div>
           </div>
         </div>
       </MarkerContent>
@@ -281,28 +272,22 @@ function BusMarker({
 }
 
 export default function BusMarkerLayer({ route }: { route: RouteData }) {
-  const [_tick, setTick] = useState(0);
   const roadPath = useRouteGeometry(route);
-
-  useEffect(() => {
-    const interval = setInterval(() => setTick((value) => value + 1), 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   const namedPoints = useMemo(
     () => route.points.filter((point) => point.point_role !== "waypoint"),
     [route.points],
   );
-  const buses = getActiveBuses(route);
+
+  // Precompute once per roadPath load — O(n), eliminates per-tick recalculation.
+  const cumDist = useMemo(() => buildCumulativeDistances(roadPath), [roadPath]);
+
   const stopRoadIndices = useMemo(
-    () =>
-      roadPath.length > 0
-        ? namedPoints.map((point) =>
-            nearestPathIndex(roadPath, point.latitude, point.longitude),
-          )
-        : [],
+    () => buildStopRoadIndices(roadPath, namedPoints),
     [roadPath, namedPoints],
   );
+
+  const buses = getActiveBuses(route);
 
   if (buses.length === 0) return null;
 
@@ -319,6 +304,7 @@ export default function BusMarkerLayer({ route }: { route: RouteData }) {
             minutesUntilEnd={bus.minutesUntilEnd}
             namedPoints={namedPoints}
             roadPath={roadPath}
+            cumDist={cumDist}
             stopRoadIndices={stopRoadIndices}
             index={index}
           />

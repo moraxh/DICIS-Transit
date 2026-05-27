@@ -2,43 +2,27 @@ import type { RouteData, RouteSchedule } from "@providers/map-provider";
 
 const MEXICO_TZ = "America/Mexico_City";
 
-function getMexicoTimeComponents(): {
-  hours: number;
-  minutes: number;
-  seconds: number;
-  milliseconds: number;
-} {
+// Compute UTC offset for Mexico City once per session. Mexico City observes CDT
+// (UTC-5) in summer and CST (UTC-6) in winter. We derive the offset by comparing
+// a parsed local time string to the UTC epoch — avoids Intl.DateTimeFormat on
+// every tick while still respecting DST transitions at session boundaries.
+let _mxOffsetMs: number | null = null;
+function getMxOffsetMs(): number {
+  if (_mxOffsetMs !== null) return _mxOffsetMs;
   const now = new Date();
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: MEXICO_TZ,
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-  const parts = formatter.formatToParts(now);
-  const get = (type: string) =>
-    parseInt(parts.find((p) => p.type === type)?.value ?? "0", 10);
-  const h = get("hour");
-  const m = get("minute");
-  const s = get("second");
-  if (Number.isNaN(h) || Number.isNaN(m) || Number.isNaN(s)) {
-    console.error("getMexicoTimeComponents: failed to parse time parts", parts);
-    return { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 };
-  }
-  return {
-    hours: h,
-    minutes: m,
-    seconds: s,
-    milliseconds: now.getMilliseconds(),
-  };
+  const local = new Date(
+    now.toLocaleString("en-US", { timeZone: MEXICO_TZ }),
+  );
+  _mxOffsetMs = local.getTime() - now.getTime();
+  return _mxOffsetMs;
 }
 
 // All time comparisons use fractional minutes (including seconds) so the schedule
 // list and the bus position on the map agree on whether a departure has passed.
 function getMexicoMinutes(): number {
-  const { hours, minutes, seconds, milliseconds } = getMexicoTimeComponents();
-  return hours * 60 + minutes + seconds / 60 + milliseconds / 60000;
+  const mxMs = Date.now() + getMxOffsetMs();
+  const totalMs = mxMs % 86400000;
+  return totalMs / 60000;
 }
 
 export function getMexicoCurrentMins(): number {

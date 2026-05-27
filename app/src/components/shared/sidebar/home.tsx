@@ -43,21 +43,30 @@ export default function HomeTab() {
   const [mounted, setMounted] = useState(false);
   const [, setTick] = useState(0);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => setTick((n) => n + 1), 10_000);
     return () => clearInterval(interval);
   }, []);
 
-  const urgentNotices = notices.filter((n) => n.priority === "urgent" || n.priority === "high");
+  const urgentNotices = notices.filter(
+    (n) => n.priority === "urgent" || n.priority === "high",
+  );
   const urgentCount = alertsLoading ? null : urgentNotices.length;
   const firstUrgent = urgentNotices[0]?.title ?? null;
   const modCount = modifications.length;
   const firstMod = modifications[0]?.description ?? null;
 
   const nearDicis = userLocation
-    ? haversineMeters(userLocation[0], userLocation[1], DICIS_COORDS.lat, DICIS_COORDS.lng) < 500
+    ? haversineMeters(
+        userLocation[0],
+        userLocation[1],
+        DICIS_COORDS.lat,
+        DICIS_COORDS.lng,
+      ) < 500
     : null;
 
   const suggestedDirection: "to_dicis" | "from_dicis" | null =
@@ -84,6 +93,10 @@ export default function HomeTab() {
   const nearestStop = showLoading
     ? null
     : getNearestStopWithNextArrival(routes, userLocation, suggestedDirection);
+  const nearestStopDisplayMinutes =
+    nearestStop?.minutesUntilArrival == null
+      ? null
+      : formatCountdownMinutes(nearestStop.minutesUntilArrival);
 
   const hasServiceInDirection = showLoading
     ? false
@@ -147,6 +160,10 @@ export default function HomeTab() {
     return `${(m / 1000).toFixed(1)} km`;
   }
 
+  function formatCountdownMinutes(minutes: number): number {
+    return Math.max(0, Math.ceil(minutes));
+  }
+
   function focusStopOnMap(routeId: string, stopId: string) {
     if (routeId !== activeRouteId) setActiveRouteId(routeId);
     setActiveStopId(stopId);
@@ -155,7 +172,9 @@ export default function HomeTab() {
   if (error) {
     return (
       <div className="p-5 flex flex-col items-center justify-center gap-3 py-16 text-center">
-        <p className="text-sm font-medium text-zinc-300">No se pudo cargar el servicio</p>
+        <p className="text-sm font-medium text-zinc-300">
+          No se pudo cargar el servicio
+        </p>
         <p className="text-xs text-zinc-500">{error.message}</p>
       </div>
     );
@@ -211,19 +230,20 @@ export default function HomeTab() {
                 <span className="text-xs text-zinc-500">
                   Ya no pasan camiones hoy por esta parada
                 </span>
-              ) : nearestStop.minutesUntilArrival === 0 ? (
+              ) : nearestStopDisplayMinutes === 0 ? (
                 <span className="text-xs font-semibold text-emerald-400">
                   Llegando ahora
                 </span>
-              ) : nearestStop.minutesUntilArrival <= 5 ? (
+              ) : nearestStopDisplayMinutes !== null &&
+                nearestStopDisplayMinutes <= 5 ? (
                 <span className="text-xs font-semibold text-orange-400">
-                  ¡Pronto! en {nearestStop.minutesUntilArrival} min
+                  ¡Pronto! en {nearestStopDisplayMinutes} min
                 </span>
               ) : (
                 <span className="text-xs text-zinc-300">
                   Próximo camión en{" "}
                   <span className="font-semibold text-white">
-                    {nearestStop.minutesUntilArrival} min
+                    {nearestStopDisplayMinutes} min
                   </span>
                 </span>
               )}
@@ -274,7 +294,8 @@ export default function HomeTab() {
         ) : (
           <div className="flex flex-col gap-2">
             {upcomingDepartures.map((dep, i) => {
-              const isSoon = dep.minutesUntil > 0 && dep.minutesUntil <= 5;
+              const displayMinutes = formatCountdownMinutes(dep.minutesUntil);
+              const isSoon = displayMinutes > 0 && displayMinutes <= 5;
               return (
                 <motion.div
                   key={`${dep.routeId}-${dep.departureTime}`}
@@ -306,17 +327,17 @@ export default function HomeTab() {
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    {dep.minutesUntil === 0 ? (
+                    {displayMinutes === 0 ? (
                       <span className="text-xs font-semibold text-emerald-400">
                         Ahora
                       </span>
                     ) : isSoon ? (
                       <span className="text-xs font-semibold text-orange-400">
-                        ¡Pronto! {dep.minutesUntil} min
+                        ¡Pronto! {displayMinutes} min
                       </span>
                     ) : (
                       <span className="text-xs font-semibold text-white">
-                        en {dep.minutesUntil} min
+                        en {displayMinutes} min
                       </span>
                     )}
                   </div>
@@ -430,9 +451,7 @@ export default function HomeTab() {
                 <p className="text-sm font-medium text-white">
                   {serviceStatus.title}
                 </p>
-                <p className="text-xs text-zinc-500">
-                  {serviceStatus.detail}
-                </p>
+                <p className="text-xs text-zinc-500">{serviceStatus.detail}</p>
               </>
             ) : serviceStatus ? (
               <>
@@ -445,9 +464,7 @@ export default function HomeTab() {
                 >
                   {serviceStatus.title}
                 </p>
-                <p className="text-xs text-zinc-500">
-                  {serviceStatus.detail}
-                </p>
+                <p className="text-xs text-zinc-500">{serviceStatus.detail}</p>
               </>
             ) : null}
           </div>
