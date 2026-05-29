@@ -137,7 +137,7 @@ export function AppSidebar() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
-              className="text-[0.7rem] ms-auto text-zinc-600 flex flex-col items-end gap-1 pt-2 mb-auto"
+              className="text-[0.7rem] ms-auto text-zinc-600 hidden md:flex flex-col items-end gap-1 pt-2 mb-auto"
             >
               {authors.map((author) => (
                 <motion.a
@@ -175,7 +175,7 @@ export function AppSidebar() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <TabsList className="flex gap-5 relative bg-transparent">
+            <TabsList className="flex justify-between md:justify-start gap-1 md:gap-5 w-full relative bg-transparent">
               {tabs.map((tab) => (
                 <TabsTrigger
                   key={tab.value}
