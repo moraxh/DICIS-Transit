@@ -6,8 +6,10 @@ const allowedPaths = [
   "/admin/login",
   "/unauthorized",
   "/offline",
+  "/transfer",
   "/api/auth/login/student",
   "/api/auth/login/admin",
+  "/api/auth/transfer/redeem",
 ];
 
 const adminPaths = ["/admin"];

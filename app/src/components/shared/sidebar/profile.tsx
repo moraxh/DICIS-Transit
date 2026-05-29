@@ -19,6 +19,7 @@ import {
   Info,
   Loader2,
   Navigation,
+  QrCode,
   ShieldCheck,
   Slash,
   ThumbsUp,
@@ -26,6 +27,7 @@ import {
   User,
   Zap,
 } from "lucide-react";
+import { TransferQRModal } from "@components/session-transfer/transfer-qr-modal";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 
@@ -46,6 +48,7 @@ export default function ProfileTab() {
   const [reports, setReports] = useState<Report[]>([]);
   const [earnedBadges, setEarnedBadges] = useState<BadgeKey[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const {
     mounted: pushMounted,
     permission,
@@ -156,6 +159,30 @@ export default function ProfileTab() {
           <p className="text-xs text-zinc-500">Repasa las funciones principales</p>
         </div>
       </motion.button>
+
+      {/* Transfer session */}
+      {userData && (
+        <motion.button
+          type="button"
+          onClick={() => setShowTransferModal(true)}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
+          transition={{ type: "spring", stiffness: 400, damping: 25 }}
+          className="w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl border border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900 transition-colors"
+        >
+          <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+            <QrCode size={14} className="text-zinc-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-white">Transferir sesion</p>
+            <p className="text-xs text-zinc-500">Mover a otro dispositivo via QR</p>
+          </div>
+        </motion.button>
+      )}
+
+      {showTransferModal && (
+        <TransferQRModal onClose={() => setShowTransferModal(false)} />
+      )}
 
       {/* Credibility score */}
       <motion.section

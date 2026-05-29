@@ -12,9 +12,11 @@ import {
   X,
 } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function UnauthorizedPage() {
+  const router = useRouter();
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
 
@@ -79,7 +81,7 @@ export default function UnauthorizedPage() {
               <Button
                 variant="outline"
                 className="h-11 flex-1"
-                onClick={() => setIsHelpOpen(true)}
+                onClick={() => router.push("/transfer")}
               >
                 <QrCode className="mr-2 h-4 w-4" />
                 Recibir sesion
