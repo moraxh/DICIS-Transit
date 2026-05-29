@@ -2,7 +2,6 @@
 
 import { supabase } from "@lib/supabase/client";
 import { useAuth } from "@providers/auth-provider";
-import { useSearchParams } from "next/navigation";
 import {
   createContext,
   type ReactNode,
@@ -122,11 +121,16 @@ interface MapContextType {
 
 const MapContext = createContext<MapContextType | undefined>(undefined);
 
-export function MapProvider({ children }: { children: ReactNode }) {
+export function MapProvider({
+  children,
+  initialRouteId = null,
+  initialStopId = null,
+}: {
+  children: ReactNode;
+  initialRouteId?: string | null;
+  initialStopId?: string | null;
+}) {
   const { userData } = useAuth();
-  const searchParams = useSearchParams();
-  const urlRouteId = searchParams.get("route");
-  const urlStopId = searchParams.get("stop");
   const urlParamsApplied = useRef(false);
   const [routes, setRoutes] = useState<RouteData[]>([]);
   const [activeRouteId, setActiveRouteId] = useState<string | null>(null);
@@ -231,13 +235,13 @@ export function MapProvider({ children }: { children: ReactNode }) {
         if (parsedRoutes.length > 0) {
           // ?route= param takes highest priority (shared link)
           if (
-            urlRouteId &&
-            parsedRoutes.some((r) => r.id === urlRouteId) &&
+            initialRouteId &&
+            parsedRoutes.some((r) => r.id === initialRouteId) &&
             !urlParamsApplied.current
           ) {
             urlParamsApplied.current = true;
-            setActiveRouteId(urlRouteId);
-            if (urlStopId) setActiveStopId(urlStopId);
+            setActiveRouteId(initialRouteId);
+            if (initialStopId) setActiveStopId(initialStopId);
             return;
           }
 
@@ -249,13 +253,13 @@ export function MapProvider({ children }: { children: ReactNode }) {
               .from("user_favorites")
               .select("route_id")
               .eq("user_id", userData.id)
-              .limit(1)
-              .single();
+              .limit(1);
+            const firstFav = favData?.[0];
             if (
-              favData?.route_id &&
-              parsedRoutes.some((r) => r.id === favData.route_id)
+              firstFav?.route_id &&
+              parsedRoutes.some((r) => r.id === firstFav.route_id)
             ) {
-              defaultId = favData.route_id;
+              defaultId = firstFav.route_id;
             }
           }
 
@@ -274,7 +278,7 @@ export function MapProvider({ children }: { children: ReactNode }) {
     }
 
     loadRoutes();
-  }, [getDefaultRouteId]);
+  }, [getDefaultRouteId, initialRouteId, initialStopId, userData?.id]);
 
   // PERF-2: Poll reportCounts every 60s so map markers reflect new student reports
   useEffect(() => {

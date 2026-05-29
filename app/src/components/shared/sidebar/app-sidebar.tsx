@@ -105,7 +105,7 @@ export function AppSidebar() {
         onValueChange={handleTabChange}
       >
         {/* Header */}
-        <SidebarHeader className="flex flex-col gap-5 p-5 border-b relative overflow-hidden">
+        <SidebarHeader data-tour="sidebar" className="flex flex-col gap-5 p-5 border-b relative overflow-hidden">
           {/* Subtle gradient background for header */}
           <div className="absolute inset-0 bg-linear-to-b from-white/5 to-transparent pointer-events-none" />
 
@@ -180,6 +180,7 @@ export function AppSidebar() {
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
+                  data-tour={`tab-${tab.value}`}
                   className="relative px-2 bg-0 border-0 bg-transparent! group transition-colors hover:text-white"
                 >
                   {activeTab === tab.value && (

@@ -115,6 +115,18 @@ export function useSaveRouteOverride() {
           .insert(row);
         if (error) throw error;
       }
+
+      fetch("/api/notifications/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "route_modification",
+          title: "Modificación de ruta",
+          body: "Una ruta que sigues tiene un cambio temporal activo.",
+          url: "/",
+          routeId: payload.route_id,
+        }),
+      }).catch(console.error);
     },
     onSuccess: () => {
       toast.success("Cambio temporal guardado");
@@ -130,12 +142,30 @@ export function useRestoreRoute() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (overrideId: string) => {
+    mutationFn: async ({
+      overrideId,
+      routeId,
+    }: {
+      overrideId: string;
+      routeId: string;
+    }) => {
       const { error } = await supabase
         .from("route_temporary_overrides")
         .update({ status: "resolved" })
         .eq("id", overrideId);
       if (error) throw error;
+
+      fetch("/api/notifications/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "service_restored",
+          title: "Servicio reanudado",
+          body: "Una ruta que sigues ha vuelto a su recorrido normal.",
+          url: "/",
+          routeId,
+        }),
+      }).catch(console.error);
     },
     onSuccess: () => {
       toast.success("Ruta restaurada al original");

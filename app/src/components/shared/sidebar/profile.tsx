@@ -1,6 +1,8 @@
 "use client";
 
 import { Progress } from "@components/ui/progress";
+import { useTourContext } from "@components/onboarding/tour-context";
+import { usePushNotifications } from "@hooks/use-push-notifications";
 import { BADGES, type BadgeKey } from "@lib/badges";
 import { REPORT_TYPE_LABEL } from "@lib/constants";
 import { supabase } from "@lib/supabase/client";
@@ -9,7 +11,21 @@ import { useMapData } from "@providers/map-provider";
 import clsx from "clsx";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { Clock, Flag, Loader2, ShieldCheck, User } from "lucide-react";
+import {
+  Bell,
+  CheckCircle2,
+  Clock,
+  Flag,
+  Info,
+  Loader2,
+  Navigation,
+  ShieldCheck,
+  Slash,
+  ThumbsUp,
+  Users,
+  User,
+  Zap,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 
@@ -26,9 +42,20 @@ interface Report {
 export default function ProfileTab() {
   const { userData, credibilityScore, visitorId } = useAuth();
   const { routes } = useMapData();
+  const { startTour } = useTourContext();
   const [reports, setReports] = useState<Report[]>([]);
   const [earnedBadges, setEarnedBadges] = useState<BadgeKey[]>([]);
   const [loading, setLoading] = useState(true);
+  const {
+    mounted: pushMounted,
+    permission,
+    isSubscribed,
+    preferences,
+    subscribeError,
+    requestPermissionAndSubscribe,
+    unsubscribe,
+    updatePreferences,
+  } = usePushNotifications();
 
   useEffect(() => {
     if (!userData?.id) {
@@ -104,13 +131,31 @@ export default function ProfileTab() {
           <User size={18} className="text-zinc-400" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-white">ID {shortId}</p>
+          <p className="text-sm font-semibold text-white" suppressHydrationWarning>ID {shortId}</p>
           <p className="text-xs text-zinc-500">
             {userData ? "Sesión activa" : "Visitante"}
           </p>
         </div>
         <ShieldCheck size={16} className="text-zinc-600 shrink-0" />
       </motion.section>
+
+      {/* Tour */}
+      <motion.button
+        type="button"
+        onClick={() => startTour(true)}
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.98 }}
+        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+        className="w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl border border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900 transition-colors"
+      >
+        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+          <Info size={14} className="text-zinc-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-white">Ver tour de la app</p>
+          <p className="text-xs text-zinc-500">Repasa las funciones principales</p>
+        </div>
+      </motion.button>
 
       {/* Credibility score */}
       <motion.section
@@ -183,6 +228,145 @@ export default function ProfileTab() {
           })}
         </div>
       </motion.section>
+
+      {pushMounted && (
+        <motion.section
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.09 }}
+        >
+          <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">
+            Notificaciones
+          </h3>
+          <div className="px-4 py-3 rounded-xl border border-zinc-800 bg-zinc-900/40 space-y-3">
+            {permission === "unsupported" && (
+              <p className="text-xs text-zinc-500">
+                Tu navegador no soporta notificaciones push.
+              </p>
+            )}
+            {permission === "denied" && (
+              <p className="text-xs text-amber-400/80">
+                Notificaciones bloqueadas. Habilítalas en ajustes del navegador.
+              </p>
+            )}
+            {permission !== "unsupported" && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bell
+                    size={14}
+                    className={isSubscribed ? "text-zinc-300" : "text-zinc-600"}
+                  />
+                  <span className="text-sm text-zinc-300">Activar alertas</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={
+                    isSubscribed ? unsubscribe : requestPermissionAndSubscribe
+                  }
+                  className={clsx(
+                    "relative w-10 h-5.5 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30",
+                    isSubscribed ? "bg-white/20" : "bg-zinc-700",
+                  )}
+                  aria-label={
+                    isSubscribed
+                      ? "Desactivar notificaciones"
+                      : "Activar notificaciones"
+                  }
+                >
+                  <span
+                    className={clsx(
+                      "absolute top-1/2 left-0 -translate-y-1/2 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200",
+                      isSubscribed ? "translate-x-5.5" : "translate-x-0.5",
+                    )}
+                  />
+                </button>
+              </div>
+            )}
+            {subscribeError && !isSubscribed && (
+              <p className="text-xs text-amber-400/80">{subscribeError}</p>
+            )}
+            {isSubscribed && (
+              <div className="space-y-2.5 pt-1 border-t border-zinc-800">
+                {(
+                  [
+                    {
+                      key: "notifyUrgentNotices" as const,
+                      label: "Avisos urgentes",
+                      Icon: Zap,
+                    },
+                    {
+                      key: "notifyRouteMods" as const,
+                      label: "Modificaciones de ruta",
+                      Icon: Navigation,
+                    },
+                    {
+                      key: "notifyDelayAlerts" as const,
+                      label: "Alertas de retraso",
+                      Icon: Clock,
+                    },
+                    {
+                      key: "notifyReportVerified" as const,
+                      label: "Reporte verificado",
+                      Icon: CheckCircle2,
+                    },
+                    {
+                      key: "notifyServiceCuts" as const,
+                      label: "Cortes de servicio",
+                      Icon: Slash,
+                    },
+                    {
+                      key: "notifyScheduleChanges" as const,
+                      label: "Cambios de horario",
+                      Icon: Clock,
+                    },
+                    {
+                      key: "notifyFullCapacity" as const,
+                      label: "Aforo lleno",
+                      Icon: Users,
+                    },
+                    {
+                      key: "notifyServiceRestored" as const,
+                      label: "Servicio reanudado",
+                      Icon: ThumbsUp,
+                    },
+                  ] as const
+                ).map(({ key, label, Icon }) => (
+                  <div key={key} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Icon size={12} className="text-zinc-500" />
+                      <span className="text-xs text-zinc-400">{label}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updatePreferences({ [key]: !preferences[key] })
+                      }
+                      className={clsx(
+                        "relative w-8 h-4 rounded-full transition-colors duration-200",
+                        preferences[key] ? "bg-white/20" : "bg-zinc-700",
+                      )}
+                      aria-label={label}
+                    >
+                      <span
+                        className={clsx(
+                          "absolute top-0.5 left-0 w-3 h-3 rounded-full bg-white shadow-sm transition-transform duration-200",
+                          preferences[key]
+                            ? "translate-x-4.5"
+                            : "translate-x-0.5",
+                        )}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <p className="text-[10px] text-zinc-600 mt-2 px-1">
+            En iOS, las notificaciones requieren instalar la app desde Safari
+            (Añadir a pantalla de inicio).
+          </p>
+        </motion.section>
+      )}
 
       {/* Report history */}
       <motion.section

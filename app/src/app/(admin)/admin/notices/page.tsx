@@ -259,19 +259,19 @@ function RouteMultiSelect({
     .map((r) => r.name);
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label className="text-xs text-zinc-500 font-medium flex items-center gap-1.5">
-        <Bus size={11} />
+    <div className="flex flex-col gap-2">
+      <Label className="text-sm text-zinc-400 font-medium flex items-center gap-1.5">
+        <Bus size={13} />
         Rutas afectadas
-        <span className="text-zinc-700">(opcional)</span>
+        <span className="text-zinc-600 text-xs font-normal">(opcional)</span>
       </Label>
 
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
-        className="w-full flex items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-left text-sm transition-colors hover:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-700"
+        className="w-full flex items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2.5 text-left text-sm transition-colors hover:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-700"
       >
-        <span className="text-zinc-400 truncate text-xs">
+        <span className="text-zinc-400 truncate text-sm">
           {selectedNames.length === 0
             ? "Seleccionar rutas..."
             : selectedNames.length === routes.length
@@ -279,7 +279,7 @@ function RouteMultiSelect({
               : selectedNames.join(", ")}
         </span>
         {value.length > 0 && (
-          <span className="shrink-0 text-[10px] font-semibold bg-blue-500/20 text-blue-400 rounded-full px-1.5 py-0.5">
+          <span className="shrink-0 text-xs font-semibold bg-blue-500/20 text-blue-400 rounded-full px-2 py-0.5">
             {value.length}
           </span>
         )}
@@ -295,28 +295,28 @@ function RouteMultiSelect({
             className="rounded-lg border border-zinc-800 bg-zinc-950 shadow-xl overflow-hidden"
           >
             {isLoading ? (
-              <div className="p-3 text-xs text-zinc-500 text-center">
+              <div className="p-4 text-sm text-zinc-500 text-center">
                 Cargando rutas...
               </div>
             ) : routes.length === 0 ? (
-              <div className="p-3 text-xs text-zinc-500 text-center">
+              <div className="p-4 text-sm text-zinc-500 text-center">
                 Sin rutas activas
               </div>
             ) : (
-              <div className="max-h-44 overflow-y-auto divide-y divide-zinc-900">
+              <div className="max-h-52 overflow-y-auto divide-y divide-zinc-900">
                 {routes.map((route) => (
                   <button
                     key={route.id}
                     type="button"
                     onClick={() => toggle(route.id)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-zinc-900 transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-zinc-900 transition-colors"
                   >
                     <Checkbox
                       checked={value.includes(route.id)}
                       readOnly
                       className="pointer-events-none"
                     />
-                    <span className="text-xs text-zinc-300">{route.name}</span>
+                    <span className="text-sm text-zinc-300">{route.name}</span>
                   </button>
                 ))}
               </div>
@@ -361,21 +361,21 @@ function NoticeForm({
   return (
     <motion.form
       onSubmit={handleSubmit(onSubmit)}
-      className="flex flex-col gap-5 px-5 pb-5"
+      className="flex flex-col gap-6 px-6 pb-6"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
     >
       {/* Category */}
-      <div className="flex flex-col gap-1.5">
-        <Label className="text-xs text-zinc-500 font-medium">
+      <div className="flex flex-col gap-2">
+        <Label className="text-sm text-zinc-400 font-medium">
           Tipo de aviso
         </Label>
         <Controller
           name="category"
           control={control}
           render={({ field }) => (
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-4 gap-2">
               {categoryOptions.map((cat) => {
                 const cfg = categoryConfig[cat];
                 const Icon = cfg.icon;
@@ -385,18 +385,18 @@ function NoticeForm({
                     key={cat}
                     type="button"
                     onClick={() => field.onChange(cat)}
-                    className={`flex flex-col items-center gap-1.5 rounded-lg border p-2 text-center transition-all ${
+                    className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-all ${
                       active
                         ? "border-zinc-600 bg-zinc-800 shadow-sm"
                         : "border-zinc-800/60 bg-zinc-900/30 hover:border-zinc-700 hover:bg-zinc-900"
                     }`}
                   >
                     <Icon
-                      size={14}
+                      size={18}
                       className={active ? cfg.color : "text-zinc-600"}
                     />
                     <span
-                      className={`text-[9px] font-medium leading-tight ${active ? "text-zinc-200" : "text-zinc-600"}`}
+                      className={`text-[11px] font-medium leading-tight ${active ? "text-zinc-200" : "text-zinc-600"}`}
                     >
                       {cfg.label}
                     </span>
@@ -409,10 +409,10 @@ function NoticeForm({
       </div>
 
       {/* Title */}
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <Label
           htmlFor="notice-title"
-          className="text-xs text-zinc-500 font-medium"
+          className="text-sm text-zinc-400 font-medium"
         >
           Título
         </Label>
@@ -420,20 +420,21 @@ function NoticeForm({
           id="notice-title"
           placeholder={`Ej: ${catCfg.label} en ruta 1 — ${new Date().toLocaleDateString("es-MX", { weekday: "long" })}`}
           aria-invalid={!!errors.title}
+          className="h-11 text-sm"
           {...register("title")}
         />
         {errors.title && (
-          <p className="text-[11px] text-destructive">{errors.title.message}</p>
+          <p className="text-xs text-destructive">{errors.title.message}</p>
         )}
       </div>
 
       {/* Content */}
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <Label
           htmlFor="notice-content"
-          className="text-xs text-zinc-500 font-medium flex items-center gap-1.5"
+          className="text-sm text-zinc-400 font-medium flex items-center gap-1.5"
         >
-          <CategoryIcon size={11} className={catCfg.color} />
+          <CategoryIcon size={13} className={catCfg.color} />
           Descripción
         </Label>
         <Textarea
@@ -441,21 +442,21 @@ function NoticeForm({
           placeholder={catCfg.placeholder}
           rows={5}
           aria-invalid={!!errors.content}
-          className="resize-none"
+          className="resize-none text-sm"
           {...register("content")}
         />
         <div className="flex items-center justify-between gap-2">
           {errors.content ? (
-            <p className="text-[11px] text-destructive">
+            <p className="text-xs text-destructive">
               {errors.content.message}
             </p>
           ) : (
-            <p className="text-[10px] text-zinc-600">
+            <p className="text-xs text-zinc-600">
               Sé claro: qué pasó, qué rutas afecta y qué deben hacer los
               usuarios.
             </p>
           )}
-          <p className="text-[10px] text-zinc-600 shrink-0">
+          <p className="text-xs text-zinc-600 shrink-0">
             {content.length}/1500
           </p>
         </div>
@@ -471,13 +472,13 @@ function NoticeForm({
       />
 
       {/* Priority */}
-      <div className="flex flex-col gap-1.5">
-        <Label className="text-xs text-zinc-500 font-medium">Prioridad</Label>
+      <div className="flex flex-col gap-2">
+        <Label className="text-sm text-zinc-400 font-medium">Prioridad</Label>
         <Controller
           name="priority"
           control={control}
           render={({ field }) => (
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-2 gap-2">
               {priorityOptions.map((opt) => {
                 const active = field.value === opt.value;
                 const cfg = priorityConfig[opt.value];
@@ -487,23 +488,23 @@ function NoticeForm({
                     key={opt.value}
                     type="button"
                     onClick={() => field.onChange(opt.value)}
-                    className={`flex items-center gap-2.5 rounded-lg border p-2.5 text-left transition-all ${
+                    className={`flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all ${
                       active
                         ? `${cfg.border} border-opacity-100`
                         : "border-zinc-800/60 bg-zinc-900/30 hover:border-zinc-700"
                     }`}
                   >
                     <Icon
-                      size={13}
+                      size={16}
                       className={active ? cfg.iconColor : "text-zinc-700"}
                     />
                     <div>
                       <p
-                        className={`text-xs font-medium ${active ? "text-zinc-200" : "text-zinc-500"}`}
+                        className={`text-sm font-medium ${active ? "text-zinc-200" : "text-zinc-500"}`}
                       >
                         {opt.label}
                       </p>
-                      <p className="text-[9px] text-zinc-600 leading-tight">
+                      <p className="text-xs text-zinc-600 leading-tight mt-0.5">
                         {opt.desc}
                       </p>
                     </div>
@@ -516,10 +517,10 @@ function NoticeForm({
       </div>
 
       {/* Dates */}
-      <div className="flex gap-3">
-        <div className="flex flex-col gap-1.5 flex-1">
-          <Label className="text-xs text-zinc-500 font-medium flex items-center gap-1.5">
-            <Clock size={10} />
+      <div className="flex gap-4">
+        <div className="flex flex-col gap-2 flex-1">
+          <Label className="text-sm text-zinc-400 font-medium flex items-center gap-1.5">
+            <Clock size={13} />
             Inicio (opcional)
           </Label>
           <Controller
@@ -535,9 +536,9 @@ function NoticeForm({
           />
         </div>
 
-        <div className="flex flex-col gap-1.5 flex-1">
-          <Label className="text-xs text-zinc-500 font-medium flex items-center gap-1.5">
-            <CalendarClock size={10} />
+        <div className="flex flex-col gap-2 flex-1">
+          <Label className="text-sm text-zinc-400 font-medium flex items-center gap-1.5">
+            <CalendarClock size={13} />
             Expira (opcional)
           </Label>
           <Controller
@@ -555,8 +556,8 @@ function NoticeForm({
         </div>
       </div>
 
-      <Button type="submit" disabled={isPending} className="w-full mt-1">
-        {isPending && <Loader2 size={14} className="animate-spin mr-2" />}
+      <Button type="submit" disabled={isPending} className="w-full h-11 text-sm mt-1">
+        {isPending && <Loader2 size={15} className="animate-spin mr-2" />}
         Publicar aviso
       </Button>
     </motion.form>
@@ -932,17 +933,17 @@ export default function AdminNoticesPage() {
 
       {/* Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="px-5 pt-5 pb-0">
-            <DialogTitle className="flex items-center gap-2">
-              <Megaphone size={16} className="text-zinc-400" />
+        <DialogContent className="sm:max-w-2xl max-h-[92vh] overflow-y-auto">
+          <DialogHeader className="px-6 pt-6 pb-0">
+            <DialogTitle className="flex items-center gap-2.5 text-base">
+              <Megaphone size={18} className="text-zinc-400" />
               Nuevo aviso
             </DialogTitle>
-            <p className="text-xs text-zinc-500 mt-1">
+            <p className="text-sm text-zinc-500 mt-1">
               Informa a los usuarios sobre cambios en el servicio
             </p>
           </DialogHeader>
-          <div className="mt-4">
+          <div className="mt-5">
             <NoticeForm
               onSubmit={handleCreate}
               isPending={createNotice.isPending}

@@ -13,6 +13,9 @@ const serverEnvSchema = z.object({
     z.boolean().default(false),
   ),
   CAMPUS_ALLOWED_CIDR: z.string().default("192.168.1.0/24"),
+  FIREBASE_PROJECT_ID: z.string().min(1),
+  FIREBASE_CLIENT_EMAIL: z.string().email(),
+  FIREBASE_PRIVATE_KEY: z.string().min(1),
 });
 
 function validateServerEnv() {
@@ -25,6 +28,9 @@ function validateServerEnv() {
       SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
       REQUIRE_CAMPUS_WIFI: process.env.REQUIRE_CAMPUS_WIFI,
       CAMPUS_ALLOWED_CIDR: process.env.CAMPUS_ALLOWED_CIDR,
+      FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
+      FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL,
+      FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -47,6 +53,9 @@ export const {
   SUPABASE_SERVICE_ROLE_KEY,
   REQUIRE_CAMPUS_WIFI,
   CAMPUS_ALLOWED_CIDR,
+  FIREBASE_PROJECT_ID,
+  FIREBASE_CLIENT_EMAIL,
+  FIREBASE_PRIVATE_KEY,
 } = serverEnv;
 
 export const IS_PRODUCTION =

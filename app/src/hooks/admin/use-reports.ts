@@ -83,8 +83,29 @@ export function useUpdateReportStatus() {
         queryClient.setQueryData(["admin", "reports-list"], ctx.prev);
       toast.error("Error al actualizar estado");
     },
-    onSuccess: () => {
+    onSuccess: (_data, { id, status }) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "kpis"] });
+
+      if (status === "verified") {
+        const reports = queryClient.getQueryData<Report[]>([
+          "admin",
+          "reports-list",
+        ]);
+        const report = reports?.find((r) => r.id === id);
+        if (report?.user_id) {
+          fetch("/api/notifications/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "report_verified",
+              title: "Reporte verificado",
+              body: "Tu reporte fue revisado y verificado. ¡Gracias por contribuir!",
+              url: "/",
+              userId: report.user_id,
+            }),
+          }).catch(console.error);
+        }
+      }
     },
   });
 }

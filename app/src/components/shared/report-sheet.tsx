@@ -122,6 +122,22 @@ export default function ReportSheet({ open, onOpenChange }: ReportSheetProps) {
       return;
     }
 
+    if (selectedType === "delay") {
+      fetch("/api/push/check-delay-threshold", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ routeId: selectedRouteId }),
+      }).catch(console.error);
+    }
+
+    if (selectedType === "full_bus") {
+      fetch("/api/push/check-capacity-threshold", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ routeId: selectedRouteId }),
+      }).catch(console.error);
+    }
+
     toast.success("Reporte enviado. Gracias por contribuir.");
     resetAndClose();
   }

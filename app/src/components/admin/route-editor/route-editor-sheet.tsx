@@ -306,7 +306,10 @@ export function RouteEditorSheet({
 
   const handleRestore = useCallback(() => {
     if (!existingOverride) return;
-    restoreRoute.mutate(existingOverride.id, { onSuccess: onClose });
+    restoreRoute.mutate(
+      { overrideId: existingOverride.id, routeId: existingOverride.route_id },
+      { onSuccess: onClose },
+    );
   }, [existingOverride, restoreRoute, onClose]);
 
   // Escape exits current mode

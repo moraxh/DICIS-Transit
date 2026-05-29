@@ -175,3 +175,102 @@
     transform: scale(1.08);
   }
 }
+
+/* ── Driver.js dark theme ────────────────────────────────────── */
+@import "driver.js/dist/driver.css";
+
+.driver-popover {
+  background-color: oklch(0.145 0 0) !important;
+  color: oklch(0.985 0 0) !important;
+  border: 1px solid oklch(1 0 0 / 12%) !important;
+  border-radius: 0.875rem !important;
+  box-shadow:
+    0 0 0 1px oklch(1 0 0 / 6%),
+    0 8px 32px oklch(0 0 0 / 60%) !important;
+  min-width: 280px !important;
+  max-width: 320px !important;
+  padding: 18px 20px !important;
+  font-family: inherit !important;
+}
+
+.driver-popover * {
+  font-family: inherit !important;
+}
+
+.driver-popover-title {
+  font-size: 0.9375rem !important;
+  font-weight: 600 !important;
+  color: oklch(0.985 0 0) !important;
+  line-height: 1.4 !important;
+}
+
+.driver-popover-description {
+  font-size: 0.8125rem !important;
+  color: oklch(0.708 0 0) !important;
+  line-height: 1.6 !important;
+  margin-top: 6px !important;
+}
+
+.driver-popover-footer {
+  margin-top: 16px !important;
+}
+
+.driver-popover-progress-text {
+  font-size: 0.75rem !important;
+  color: oklch(0.5 0 0) !important;
+}
+
+.driver-popover-footer button {
+  background-color: oklch(0.205 0 0) !important;
+  color: oklch(0.985 0 0) !important;
+  border: 1px solid oklch(1 0 0 / 12%) !important;
+  border-radius: 0.5rem !important;
+  padding: 5px 12px !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+  text-shadow: none !important;
+  transition: background-color 0.15s ease !important;
+}
+
+.driver-popover-footer button:hover,
+.driver-popover-footer button:focus {
+  background-color: oklch(0.269 0 0) !important;
+}
+
+.driver-popover-close-btn {
+  color: oklch(0.5 0 0) !important;
+  font-weight: 400 !important;
+}
+
+.driver-popover-close-btn:hover,
+.driver-popover-close-btn:focus {
+  color: oklch(0.985 0 0) !important;
+}
+
+/* Arrow colors to match popover background */
+.driver-popover-arrow {
+  border-color: oklch(0.145 0 0) !important;
+}
+
+/* Let driver.js control overlay opacity via overlayOpacity config */
+
+/* Glow on highlighted element for dark theme contrast */
+.driver-active-element,
+.driver-highlighted-element {
+  box-shadow:
+    0 0 0 3px oklch(0.7 0.18 250),
+    0 0 20px oklch(0.7 0.18 250 / 0.5) !important;
+}
+
+/* Sidebar: no glow, just subtle border */
+[data-tour="sidebar"].driver-active-element,
+[data-tour="sidebar"].driver-highlighted-element {
+  box-shadow: none !important;
+}
+
+/* Round report button keeps its shape */
+[data-tour="report-btn"].driver-active-element,
+[data-tour="report-btn"].driver-highlighted-element {
+  border-radius: 9999px !important;
+}
+

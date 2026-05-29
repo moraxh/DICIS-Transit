@@ -72,7 +72,7 @@ export default function UnauthorizedPage() {
               <Button
                 variant="default"
                 className="h-11 flex-1"
-                onClick={() => window.location.reload()}
+                onClick={() => { window.location.href = "/"; }}
               >
                 Reintentar
               </Button>

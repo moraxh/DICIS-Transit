@@ -62,6 +62,47 @@ export function useCreateNotice() {
     mutationFn: async (payload: NoticePayload) => {
       const { error } = await supabase.from("notices").insert(payload);
       if (error) throw error;
+
+      const CATEGORY_NOTIF: Partial<
+        Record<
+          NoticeCategory,
+          { type: string; title: string }
+        >
+      > = {
+        cancellation: { type: "service_cut", title: "Corte de servicio" },
+        schedule_change: {
+          type: "schedule_change",
+          title: "Cambio de horario",
+        },
+      };
+
+      const categoryNotif = CATEGORY_NOTIF[payload.category];
+      const routeId = payload.affected_route_ids[0];
+
+      if (payload.priority === "urgent") {
+        fetch("/api/notifications/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "urgent_notice",
+            title: payload.title,
+            body: payload.content.slice(0, 120),
+            url: "/",
+          }),
+        }).catch(console.error);
+      } else if (categoryNotif && routeId) {
+        fetch("/api/notifications/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: categoryNotif.type,
+            title: categoryNotif.title,
+            body: payload.content.slice(0, 120),
+            url: "/",
+            routeId,
+          }),
+        }).catch(console.error);
+      }
     },
     onSuccess: () => {
       toast.success("Aviso creado");

@@ -1,4 +1,4 @@
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const STATIC_CACHE = `dicis-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `dicis-dynamic-${CACHE_VERSION}`;
 

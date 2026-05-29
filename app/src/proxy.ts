@@ -89,6 +89,6 @@ export default async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|favicon_dark.ico|favicon_light.ico|robots.txt|sitemap.xml|.well-known|manifest.webmanifest|sw.js|offline|icons).*)",
+    "/((?!_next/static|_next/image|favicon.ico|favicon_dark.ico|favicon_light.ico|robots.txt|sitemap.xml|.well-known|manifest.webmanifest|sw.js|firebase-messaging-sw.js|offline|icons).*)",
   ],
 };
