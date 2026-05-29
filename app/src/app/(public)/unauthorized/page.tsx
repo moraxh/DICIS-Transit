@@ -62,46 +62,44 @@ export default function UnauthorizedPage() {
   }, [isOnline]);
 
   return (
-    <main className="flex h-screen w-screen items-center justify-center bg-background px-4 py-8">
+    <main className="flex h-screen w-screen items-center justify-center bg-background px-4 py-6">
       <section className="w-full max-w-5xl rounded-3xl border bg-card shadow-sm">
-        <div className="grid min-h-[28rem] grid-cols-1 md:grid-cols-[1.35fr_1fr]">
-          <div className="flex flex-col justify-between border-b p-8 md:border-b-0 md:border-r md:p-10">
-            <div className="space-y-8">
-              <div className="flex items-center gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-[1.35fr_1fr] md:min-h-[28rem]">
+          <div className="flex flex-col justify-between border-b p-6 md:border-b-0 md:border-r md:p-10">
+            <div className="space-y-4 md:space-y-8">
+              <div className="flex items-center gap-3">
                 <Image
                   src={Logo}
                   alt="DICIS Tracker"
-                  className="h-16 w-16 rounded-xl object-contain"
+                  className="h-10 w-10 md:h-16 md:w-16 rounded-xl object-contain"
                   priority
                 />
                 <div>
-                  <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+                  <h1 className="text-xl md:text-3xl font-semibold tracking-tight text-foreground">
                     DICIS Tracker
                   </h1>
                 </div>
               </div>
 
-              <div className="space-y-4 text-left">
-                <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+              <div className="space-y-3 text-left">
+                <h2 className="text-lg md:text-2xl font-semibold tracking-tight text-foreground">
                   Acceso restringido por seguridad
                 </h2>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Para proteger datos potencialmente sensibles, reducir riesgos
-                  de suplantacion y mantener la integridad de reportes y rutas,
-                  esta plataforma requiere que inicies sesion por primera vez
+                <p className="text-xs md:text-sm leading-relaxed text-muted-foreground">
+                  Esta plataforma requiere que inicies sesion por primera vez
                   desde la red universitaria de la Universidad de Guanajuato.
                 </p>
-                <p className="text-sm leading-relaxed text-muted-foreground">
+                <p className="text-xs md:text-sm leading-relaxed text-muted-foreground">
                   Una vez verificada tu sesion inicial dentro de la red UG,
                   podras seguir usando DICIS Tracker desde cualquier otra red.
                 </p>
               </div>
             </div>
 
-            <div className="mt-8 flex w-full flex-row gap-3">
+            <div className="mt-5 md:mt-8 flex w-full flex-row gap-3">
               <Button
                 variant="default"
-                className="h-11 flex-1"
+                className="h-10 md:h-11 flex-1"
                 disabled={isRetrying}
                 onClick={handleRetry}
               >
@@ -113,7 +111,7 @@ export default function UnauthorizedPage() {
               </Button>
               <Button
                 variant="outline"
-                className="h-11 flex-1"
+                className="h-10 md:h-11 flex-1"
                 onClick={() => router.push("/transfer")}
               >
                 <QrCode className="mr-2 h-4 w-4" />
@@ -122,7 +120,7 @@ export default function UnauthorizedPage() {
             </div>
           </div>
 
-          <aside className="flex items-center bg-muted/25 p-8 md:p-10">
+          <aside className="hidden md:flex items-center bg-muted/25 p-8 md:p-10">
             <div className="w-full space-y-4 rounded-2xl border bg-gradient-to-b from-background to-background/80 p-6 shadow-sm">
               <div className="rounded-xl border bg-background p-4">
                 <p className="mb-3 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
