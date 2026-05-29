@@ -46,26 +46,28 @@ function HomeContent() {
           {!isMobile ? <PublicMap className="block" /> : null}
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{
-            delay: 0.3,
-            type: "spring",
-            stiffness: 400,
-            damping: 20,
-          }}
-          className="fixed top-3 right-3 z-20"
-        >
-          <Link
-            href="/admin/login"
-            className="w-8 h-8 rounded-lg bg-zinc-900/80 border border-zinc-700/50 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition-all flex items-center justify-center backdrop-blur-sm"
-            aria-label="Acceso administrador"
-            title="Acceso administrador"
+        {userType === "admin" && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{
+              delay: 0.3,
+              type: "spring",
+              stiffness: 400,
+              damping: 20,
+            }}
+            className="fixed top-3 right-3 z-20"
           >
-            <Shield size={14} />
-          </Link>
-        </motion.div>
+            <Link
+              href="/admin/login"
+              className="w-8 h-8 rounded-lg bg-zinc-900/80 border border-zinc-700/50 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition-all flex items-center justify-center backdrop-blur-sm"
+              aria-label="Acceso administrador"
+              title="Acceso administrador"
+            >
+              <Shield size={14} />
+            </Link>
+          </motion.div>
+        )}
 
         {userType === "student" && (
           <motion.button
