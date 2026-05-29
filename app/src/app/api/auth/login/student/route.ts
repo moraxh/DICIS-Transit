@@ -1,6 +1,6 @@
 import { CAMPUS_ALLOWED_CIDR, REQUIRE_CAMPUS_WIFI } from "@lib/env.server";
 import getIPFromNextRequest from "@lib/server/utils/http";
-import { createClient, createServiceClient } from "@lib/supabase/server";
+import { createClient } from "@lib/supabase/server";
 import ipaddr from "ipaddr.js";
 import { cookies } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
@@ -74,34 +74,6 @@ export async function POST(request: NextRequest) {
           },
         );
       }
-    }
-
-    // Rate limit check uses service role — anon execute was revoked (security fix)
-    const serviceClient = createServiceClient();
-    const { data: rateLimitAllowed, error: rateLimitError } =
-      await serviceClient.rpc("check_and_increment_login_limit", {
-        client_ip: ip,
-      });
-
-    if (rateLimitError) {
-      console.error("Student login rate limit error:", rateLimitError);
-      return NextResponse.json(
-        {
-          error: "Unable to validate login rate limit",
-          code: "RATE_LIMIT_CHECK_FAILED",
-        },
-        { status: 500 },
-      );
-    }
-
-    if (!rateLimitAllowed) {
-      return NextResponse.json(
-        {
-          error: "Too many login attempts. Try again later.",
-          code: "RATE_LIMITED",
-        },
-        { status: 429 },
-      );
     }
 
     const supabase = await createClient();
