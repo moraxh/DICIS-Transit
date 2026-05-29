@@ -149,7 +149,17 @@ export async function POST(request: NextRequest) {
       const batch = tokens.slice(i, i + BATCH_SIZE);
       const result = await messaging.sendEachForMulticast({
         tokens: batch,
+        notification: { title, body: msgBody },
         data: { title, body: msgBody, url, event_type: type },
+        webpush: {
+          notification: {
+            title,
+            body: msgBody,
+            icon: "/icons/icon-192.png",
+            badge: "/icons/icon-192.png",
+          },
+          fcmOptions: { link: url },
+        },
       });
 
       totalSent += result.successCount;
