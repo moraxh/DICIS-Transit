@@ -19,9 +19,18 @@ export default function UnauthorizedPage() {
   const router = useRouter();
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [retryCountdown, setRetryCountdown] = useState(15);
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  const handleRetry = () => {
+    setIsRetrying(true);
+    window.location.href = "/";
+  };
 
   useEffect(() => {
-    const updateStatus = () => setIsOnline(navigator.onLine);
+    const updateStatus = () => {
+      setIsOnline(navigator.onLine);
+    };
 
     updateStatus();
     window.addEventListener("online", updateStatus);
@@ -32,6 +41,25 @@ export default function UnauthorizedPage() {
       window.removeEventListener("offline", updateStatus);
     };
   }, []);
+
+  // Auto-retry countdown
+  useEffect(() => {
+    if (!isOnline || isRetrying) return;
+
+    if (retryCountdown <= 0) {
+      handleRetry();
+      return;
+    }
+
+    const timer = setTimeout(() => setRetryCountdown((n) => n - 1), 1000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retryCountdown, isOnline, isRetrying]);
+
+  // Reset countdown when coming back online
+  useEffect(() => {
+    if (isOnline) setRetryCountdown(15);
+  }, [isOnline]);
 
   return (
     <main className="flex h-screen w-screen items-center justify-center bg-background px-4 py-8">
@@ -74,9 +102,14 @@ export default function UnauthorizedPage() {
               <Button
                 variant="default"
                 className="h-11 flex-1"
-                onClick={() => { window.location.href = "/"; }}
+                disabled={isRetrying}
+                onClick={handleRetry}
               >
-                Reintentar
+                {isRetrying
+                  ? "Verificando..."
+                  : isOnline
+                    ? `Reintentar (${retryCountdown}s)`
+                    : "Reintentar"}
               </Button>
               <Button
                 variant="outline"

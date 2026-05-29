@@ -204,7 +204,7 @@ export function AppSidebar() {
           </motion.div>
         </SidebarHeader>
 
-        <SidebarContent className="w-full flex-1 overflow-hidden flex flex-col relative">
+        <SidebarContent className="w-full flex-1 overflow-hidden flex flex-col relative gap-0 md:gap-2">
           {/* Animated ambient glow */}
           <motion.div
             animate={{ x: [0, 20, 0], y: [0, 15, 0], opacity: [0.4, 0.7, 0.4] }}
@@ -217,7 +217,7 @@ export function AppSidebar() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="md:hidden h-[35vh] shrink-0 mb-4 rounded-xl shadow-md border border-white/10 relative overflow-hidden bg-black/10"
+            className="md:hidden h-[50vh] shrink-0 rounded-xl shadow-md border border-white/10 relative overflow-hidden bg-black/10"
           >
             <PublicMap className="w-full h-full object-cover" />
           </motion.div>
@@ -241,12 +241,21 @@ export function AppSidebar() {
                 tabIndex={0}
               >
                 <activeTabConfig.component />
+                <div className="md:hidden flex items-start gap-1.5 text-zinc-500 px-5 py-4 border-t border-zinc-800/50 mt-2">
+                  <Info className="mt-0.5 shrink-0 text-zinc-500" size={15} />
+                  <p className="text-[0.7rem] leading-relaxed">
+                    <strong className="text-zinc-400">Aviso legal:</strong> Esta no es
+                    una herramienta oficial de la Universidad de Guanajuato, sino una
+                    propuesta estudiantil. Las rutas, tiempos y ubicaciones son
+                    predicciones simuladas y pueden contener errores.
+                  </p>
+                </div>
               </motion.div>
             </AnimatePresence>
           </div>
         </SidebarContent>
 
-        <SidebarFooter className="border-t mt-auto p-5 relative overflow-hidden">
+        <SidebarFooter className="hidden md:flex border-t mt-auto p-5 relative overflow-hidden">
           {/* Subtle footer glow */}
           <motion.div
             animate={{ opacity: [0.3, 0.6, 0.3] }}

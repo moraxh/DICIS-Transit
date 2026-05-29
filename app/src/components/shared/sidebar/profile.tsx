@@ -51,6 +51,8 @@ export default function ProfileTab() {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const {
     mounted: pushMounted,
+    verifying: pushVerifying,
+    subscribing: pushSubscribing,
     permission,
     isSubscribed,
     preferences,
@@ -287,11 +289,12 @@ export default function ProfileTab() {
                 </div>
                 <button
                   type="button"
+                  disabled={pushVerifying || pushSubscribing}
                   onClick={
                     isSubscribed ? unsubscribe : requestPermissionAndSubscribe
                   }
                   className={clsx(
-                    "relative w-10 h-5.5 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30",
+                    "relative w-10 h-5.5 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 disabled:opacity-50 disabled:cursor-not-allowed",
                     isSubscribed ? "bg-white/20" : "bg-zinc-700",
                   )}
                   aria-label={

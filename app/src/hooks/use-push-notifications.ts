@@ -25,6 +25,7 @@ export interface PushPreferences {
 interface UsePushNotificationsReturn {
   mounted: boolean;
   verifying: boolean;
+  subscribing: boolean;
   permission: NotificationPermission | "unsupported";
   isSubscribed: boolean;
   fcmToken: string | null;
@@ -84,8 +85,10 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   const [fcmToken, setFcmToken] = useState<string | null>(null);
   const [preferences, setPreferences] =
     useState<PushPreferences>(DEFAULT_PREFERENCES);
+  const [subscribing, setSubscribing] = useState(false);
   const [subscribeError, setSubscribeError] = useState<string | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const subscribingRef = useRef(false);
 
   const isSubscribed = fcmToken !== null;
 
@@ -174,7 +177,11 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   }, [fcmToken]);
 
   const requestPermissionAndSubscribe = async () => {
+    if (subscribingRef.current) return;
+    subscribingRef.current = true;
+    setSubscribing(true);
     setSubscribeError(null);
+
     if (
       typeof window === "undefined" ||
       !("Notification" in window) ||
@@ -182,17 +189,18 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       !("PushManager" in window) ||
       !hasVapidKey
     ) {
+      subscribingRef.current = false;
       return;
     }
 
-    const perm = await Notification.requestPermission();
-    setPermission(perm);
-    if (perm !== "granted") return;
-
-    const messaging = getFirebaseMessaging();
-    if (!messaging) return;
-
     try {
+      const perm = await Notification.requestPermission();
+      setPermission(perm);
+      if (perm !== "granted") return;
+
+      const messaging = getFirebaseMessaging();
+      if (!messaging) return;
+
       const registration = await navigator.serviceWorker.register(
         "/firebase-messaging-sw.js",
       );
@@ -213,6 +221,9 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       setFcmToken(token);
     } catch (err) {
       setSubscribeError(await getPushSubscribeErrorMessage(err));
+    } finally {
+      subscribingRef.current = false;
+      setSubscribing(false);
     }
   };
 
@@ -254,6 +265,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   return {
     mounted,
     verifying,
+    subscribing,
     permission,
     isSubscribed,
     fcmToken,
