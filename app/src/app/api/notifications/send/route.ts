@@ -160,6 +160,15 @@ export async function POST(request: NextRequest) {
           },
           fcmOptions: { link: url },
         },
+        apns: {
+          payload: {
+            aps: {
+              alert: { title, body: msgBody },
+              sound: "default",
+            },
+          },
+          fcmOptions: { imageUrl: "/icons/icon-192.png" },
+        },
       });
 
       totalSent += result.successCount;
