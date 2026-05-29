@@ -9,6 +9,7 @@ import { AuthProvider } from "@providers/auth-provider";
 import { ThumbmarkProvider } from "@providers/thumbmark-provider";
 import FaviconDark from "./favicon_dark.ico";
 import FaviconLight from "./favicon_light.ico";
+import { Analytics } from "@vercel/analytics/next"
 
 const fontSans = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const fontMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
@@ -59,6 +60,7 @@ export default async function RootLayout({
           <Toaster />
         </ThumbmarkProvider>
         <SwRegister />
+        <Analytics />
       </body>
     </html>
   );

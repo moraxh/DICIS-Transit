@@ -276,7 +276,7 @@ export default function AdminLayout({
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!isLoading && userType !== "admin" && pathname !== "/admin/login") {
+    if (!isLoading && userType !== null && userType !== "admin" && pathname !== "/admin/login") {
       router.replace("/admin/login");
     }
   }, [isLoading, userType, router, pathname]);
@@ -285,7 +285,7 @@ export default function AdminLayout({
     return <>{children}</>;
   }
 
-  if (isLoading) {
+  if (isLoading || userType === null) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
         <motion.div
