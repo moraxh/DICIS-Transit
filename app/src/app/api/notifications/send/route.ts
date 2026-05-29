@@ -167,7 +167,6 @@ export async function POST(request: NextRequest) {
               sound: "default",
             },
           },
-          fcmOptions: { imageUrl: "/icons/icon-192.png" },
         },
       });
 
