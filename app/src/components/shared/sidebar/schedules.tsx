@@ -33,7 +33,7 @@ interface ScheduleItem {
 }
 
 function ScheduleList({ schedules }: { schedules: ScheduleItem[] }) {
-  const [tick, setTick] = useState(0);
+  const [, setTick] = useState(0);
   const nextIdx = getNextScheduleIndex(schedules);
 
   // Auto-refresh every minute to update "en X min" indicators
@@ -204,7 +204,6 @@ export default function SchedulesTab() {
     setActiveRouteId,
     setActiveStopId,
     isLoading,
-    userLocation,
     scheduleFilter: schedule,
     setScheduleFilter: setSchedule,
     directionFilter: direction,
@@ -271,8 +270,8 @@ export default function SchedulesTab() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <div className="px-4 py-3 shrink-0 border-b border-zinc-200 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-950/20 backdrop-blur-sm z-10 space-y-3">
+    <div className="flex min-h-full flex-col">
+      <div className="px-4 py-3 shrink-0 border-b border-zinc-200 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-950/20 backdrop-blur-sm space-y-3">
         {/* Current time display */}
         {currentTime && (
           <div className="flex items-center justify-between px-1">
@@ -351,7 +350,7 @@ export default function SchedulesTab() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-3">
+      <div className="flex-1 px-3 py-4 space-y-3">
         {routesWithSchedules.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}

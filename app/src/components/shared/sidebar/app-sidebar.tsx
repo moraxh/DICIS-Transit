@@ -11,13 +11,12 @@ import {
 } from "@components/ui/sidebar";
 import { Skeleton } from "@components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@components/ui/tabs";
-import { useIsMobile } from "@hooks/use-mobile";
 import { Info } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import AlertsTab from "./alerts";
 import HomeTab from "./home";
 import ProfileTab from "./profile";
@@ -53,18 +52,33 @@ const contentVariants = {
   exit: (dir: number) => ({ x: dir * -30, opacity: 0, scale: 0.98 }),
 };
 
+function LegalNotice({ className = "" }: { className?: string }) {
+  return (
+    <div className={`flex items-start gap-1.5 text-zinc-500 ${className}`}>
+      <Info className="mt-0.5 shrink-0 text-zinc-500" size={15} />
+      <p className="text-[0.7rem] leading-relaxed">
+        <strong className="text-zinc-400">Aviso legal:</strong> Esta no es una
+        herramienta oficial de la Universidad de Guanajuato, sino una propuesta
+        estudiantil. Las rutas, tiempos y ubicaciones son predicciones simuladas
+        y pueden contener errores.
+      </p>
+    </div>
+  );
+}
+
 export function AppSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [direction, setDirection] = useState(1);
-  const isMobile = useIsMobile();
   const currentTab = searchParams.get("tab");
   const activeTab = tabs.some((tab) => tab.value === currentTab)
     ? currentTab
     : "home";
   const activeTabConfig =
     tabs.find((tab) => tab.value === activeTab) ?? tabs[0];
+  const isRouteInfoTab =
+    activeTabConfig.value === "routes" || activeTabConfig.value === "schedules";
 
   const handleTabChange = useCallback(
     (nextTab: string) => {
@@ -105,7 +119,10 @@ export function AppSidebar() {
         onValueChange={handleTabChange}
       >
         {/* Header */}
-        <SidebarHeader data-tour="sidebar" className="flex flex-col gap-5 p-5 border-b relative overflow-hidden">
+        <SidebarHeader
+          data-tour="sidebar"
+          className="flex flex-col gap-5 p-5 border-b relative overflow-hidden"
+        >
           {/* Subtle gradient background for header */}
           <div className="absolute inset-0 bg-linear-to-b from-white/5 to-transparent pointer-events-none" />
 
@@ -217,7 +234,9 @@ export function AppSidebar() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="md:hidden h-[50vh] shrink-0 rounded-xl shadow-md border border-white/10 relative overflow-hidden bg-black/10"
+            className={`md:hidden shrink-0 rounded-xl shadow-md border border-white/10 relative overflow-hidden bg-black/10 ${
+              isRouteInfoTab ? "h-[34svh]" : "h-[50svh]"
+            }`}
           >
             <PublicMap className="w-full h-full object-cover" />
           </motion.div>
@@ -241,15 +260,7 @@ export function AppSidebar() {
                 tabIndex={0}
               >
                 <activeTabConfig.component />
-                <div className="md:hidden flex items-start gap-1.5 text-zinc-500 px-5 py-4 border-t border-zinc-800/50 mt-2">
-                  <Info className="mt-0.5 shrink-0 text-zinc-500" size={15} />
-                  <p className="text-[0.7rem] leading-relaxed">
-                    <strong className="text-zinc-400">Aviso legal:</strong> Esta no es
-                    una herramienta oficial de la Universidad de Guanajuato, sino una
-                    propuesta estudiantil. Las rutas, tiempos y ubicaciones son
-                    predicciones simuladas y pueden contener errores.
-                  </p>
-                </div>
+                <LegalNotice className="md:hidden px-5 py-4 border-t border-zinc-800/50 mt-2" />
               </motion.div>
             </AnimatePresence>
           </div>
@@ -263,18 +274,12 @@ export function AppSidebar() {
             className="absolute bottom-0 left-1/2 -translate-x-1/2 w-48 h-20 bg-white/3 rounded-full blur-2xl pointer-events-none"
           />
           <motion.div
-            className="flex items-start gap-1.5 text-zinc-500 relative z-10"
+            className="relative z-10"
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.5 }}
           >
-            <Info className="mt-0.5 shrink-0 text-zinc-500" size={15} />
-            <p className="text-[0.7rem] leading-relaxed">
-              <strong className="text-zinc-400">Aviso legal:</strong> Esta no es
-              una herramienta oficial de la Universidad de Guanajuato, sino una
-              propuesta estudiantil. Las rutas, tiempos y ubicaciones son
-              predicciones simuladas y pueden contener errores.
-            </p>
+            <LegalNotice />
           </motion.div>
         </SidebarFooter>
       </Tabs>

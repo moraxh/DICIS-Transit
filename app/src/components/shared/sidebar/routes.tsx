@@ -89,8 +89,8 @@ export default function RoutesTab() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <div className="px-4 py-3 shrink-0 border-b border-zinc-200 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-950/20 backdrop-blur-sm z-10 space-y-3">
+    <div className="flex min-h-full flex-col">
+      <div className="px-4 py-3 shrink-0 border-b border-zinc-200 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-950/20 backdrop-blur-sm space-y-3">
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
@@ -166,7 +166,7 @@ export default function RoutesTab() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-3">
+      <div className="flex-1 px-3 py-4 space-y-3">
         {filteredRoutes.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -182,7 +182,7 @@ export default function RoutesTab() {
               const isActive = route.id === activeRouteId;
 
               return (
-                <motion.button
+                <motion.div
                   key={route.id}
                   layout
                   initial={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -198,10 +198,6 @@ export default function RoutesTab() {
                     stiffness: 300,
                     damping: 24,
                   }}
-                  onClick={() => {
-                    setActiveRouteId(route.id);
-                    setActiveStopId(null);
-                  }}
                   className={clsx(
                     "group relative w-full text-left p-4 rounded-[20px] border transition-all duration-300",
                     "hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-zinc-500/30",
@@ -210,8 +206,15 @@ export default function RoutesTab() {
                       : "bg-white border-zinc-200/60 shadow-sm hover:bg-zinc-50/80 dark:bg-zinc-900/40 dark:border-zinc-800/80 dark:hover:bg-zinc-900/80 hover:border-zinc-300 dark:hover:border-zinc-700",
                   )}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveRouteId(route.id);
+                        setActiveStopId(null);
+                      }}
+                      className="flex min-w-0 flex-1 items-center gap-3.5 text-left focus:outline-none"
+                    >
                       <div
                         className={clsx(
                           "flex items-center justify-center w-9 h-9 rounded-full transition-all duration-300",
@@ -243,7 +246,7 @@ export default function RoutesTab() {
                           paradas
                         </p>
                       </div>
-                    </div>
+                    </button>
 
                     <div className="flex items-center gap-2 pl-2">
                       {route.isActive && (
@@ -252,18 +255,11 @@ export default function RoutesTab() {
                           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                         </span>
                       )}
-                      <div
-                        role="button"
-                        tabIndex={0}
+                      <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleFavorite(route.id);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.stopPropagation();
-                            toggleFavorite(route.id);
-                          }
                         }}
                         title={
                           isFavorite(route.id)
@@ -274,14 +270,14 @@ export default function RoutesTab() {
                           "p-1 rounded-full transition-colors z-10 cursor-pointer",
                           isFavorite(route.id)
                             ? "text-amber-400 hover:text-amber-300"
-                            : "text-zinc-300 dark:text-zinc-600 hover:text-amber-400 dark:hover:text-amber-400 opacity-0 group-hover:opacity-100",
+                            : "text-zinc-300 dark:text-zinc-600 hover:text-amber-400 dark:hover:text-amber-400 md:opacity-0 md:group-hover:opacity-100",
                         )}
                       >
                         <Star
                           className="w-4 h-4"
                           fill={isFavorite(route.id) ? "currentColor" : "none"}
                         />
-                      </div>
+                      </button>
                       {isActive ? (
                         <CheckCircle2 className="w-5 h-5 text-zinc-900 dark:text-zinc-100" />
                       ) : (
@@ -396,7 +392,7 @@ export default function RoutesTab() {
                       </motion.div>
                     )}{" "}
                   </AnimatePresence>{" "}
-                </motion.button>
+                </motion.div>
               );
             })}
           </AnimatePresence>
