@@ -112,6 +112,20 @@ export default function HomeTab() {
         0,
       );
 
+  const activeOutboundBusCount = showLoading
+    ? 0
+    : routes
+        .filter((route) => route.direction === "to_dicis")
+        .reduce((acc, route) => acc + getActiveBuses(route).length, 0);
+
+  const activeReturnBusCount = showLoading
+    ? 0
+    : routes
+        .filter((route) => route.direction === "from_dicis")
+        .reduce((acc, route) => acc + getActiveBuses(route).length, 0);
+
+  const totalActiveBusCount = activeOutboundBusCount + activeReturnBusCount;
+
   const nearestStop = showLoading
     ? null
     : getNearestStopWithNextArrival(routes, userLocation, suggestedDirection);
@@ -153,10 +167,10 @@ export default function HomeTab() {
 
   const serviceStatus = showLoading
     ? null
-    : activeBusCount > 0
+    : totalActiveBusCount > 0
       ? {
-          title: `${activeBusCount} camión${activeBusCount !== 1 ? "es" : ""} en ruta`,
-          detail: "Servicio activo en este momento",
+          title: `${totalActiveBusCount} camión${totalActiveBusCount !== 1 ? "es" : ""} en ruta`,
+          detail: `Ida: ${activeOutboundBusCount} · Regreso: ${activeReturnBusCount}`,
           tone: "active" as const,
         }
       : !hasServiceInDirection
